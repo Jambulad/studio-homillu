@@ -1,6 +1,7 @@
+
 "use client"
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { TreeNode, Person } from "@/components/features/family-tree/tree-node";
 import { Button } from "@/components/ui/button";
@@ -40,11 +41,11 @@ export default function FamilyTreePage() {
   };
 
   // Group members into generations for visualization
-  const generations = [
+  const generations = useMemo(() => [
     { label: "Grandparents", members: family.filter(p => p.role?.includes("Grand")) },
     { label: "Parents", members: family.filter(p => p.role === "Father" || p.role === "Mother") },
-    { label: "Children", members: family.filter(p => p.role === "Son" || p.role === "Daughter" || (!p.role?.includes("Grand") && p.parentId)) }
-  ];
+    { label: "Children", members: family.filter(p => p.role === "Son" || p.role === "Daughter" || (!p.role?.includes("Grand") && p.parentId && !p.role?.includes("Mother") && !p.role?.includes("Father"))) }
+  ], [family]);
 
   return (
     <div className="h-[calc(100vh-120px)] flex flex-col space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -87,7 +88,7 @@ export default function FamilyTreePage() {
           >
             {generations.map((gen, gIdx) => (
               <div key={gen.label} className="flex flex-col items-center w-full relative">
-                <div className="flex gap-16 justify-center mb-24 relative">
+                <div className="flex gap-20 justify-center mb-24 relative">
                   {gen.members.map((person) => (
                     <div key={person.id} className="relative">
                       <TreeNode 
@@ -98,45 +99,42 @@ export default function FamilyTreePage() {
                       
                       {/* Spouse Connector */}
                       {person.spouseId && (
-                        <div className="absolute top-1/2 -right-8 w-8 h-0.5 bg-primary/30 z-0" />
+                        <div className="absolute top-1/2 -right-10 w-10 h-0.5 bg-primary/40 z-0" />
                       )}
 
-                      {/* Parent to Child Connector Lines */}
-                      {gIdx < generations.length - 1 && person.role === "Father" && (
-                        <svg className="absolute top-full left-1/2 -translate-x-1/2 w-[400px] h-24 overflow-visible pointer-events-none">
+                      {/* Visual Branch Connectors */}
+                      {gIdx < generations.length - 1 && (person.role === "Father" || person.role === "Grandfather") && (
+                        <svg className="absolute top-full left-1/2 -translate-x-1/2 w-[200px] h-24 overflow-visible pointer-events-none">
                           <path 
-                            d="M 200 0 L 200 40 L 200 40" 
+                            d="M 100 0 L 100 40" 
                             stroke="hsl(var(--primary))" 
                             strokeWidth="2" 
                             fill="none" 
-                            className="opacity-30"
+                            className="opacity-40"
                           />
-                          <path 
-                            d="M 50 40 L 350 40" 
-                            stroke="hsl(var(--primary))" 
-                            strokeWidth="2" 
-                            fill="none" 
-                            className="opacity-30"
-                          />
-                          <path 
-                            d="M 200 40 L 200 80" 
-                            stroke="hsl(var(--primary))" 
-                            strokeWidth="2" 
-                            fill="none" 
-                            className="opacity-30"
-                          />
-                        </svg>
-                      )}
-                      
-                      {gIdx < generations.length - 1 && person.role === "Grandfather" && (
-                        <svg className="absolute top-full left-1/2 -translate-x-1/2 w-[400px] h-24 overflow-visible pointer-events-none">
-                          <path 
-                            d="M 200 0 L 200 80" 
-                            stroke="hsl(var(--primary))" 
-                            strokeWidth="2" 
-                            fill="none" 
-                            className="opacity-30"
-                          />
+                          {/* If Grandfather, connect to children row */}
+                          {person.role === "Grandfather" && (
+                            <path 
+                              d="M 100 40 L 100 80" 
+                              stroke="hsl(var(--primary))" 
+                              strokeWidth="2" 
+                              fill="none" 
+                              className="opacity-40"
+                            />
+                          )}
+                          {/* If Father, spread to kids */}
+                          {person.role === "Father" && (
+                            <>
+                              <path 
+                                d="M 100 40 L 100 80" 
+                                stroke="hsl(var(--primary))" 
+                                strokeWidth="2" 
+                                fill="none" 
+                                className="opacity-40"
+                              />
+                              <circle cx="100" cy="40" r="3" fill="hsl(var(--primary))" className="opacity-60" />
+                            </>
+                          )}
                         </svg>
                       )}
                     </div>

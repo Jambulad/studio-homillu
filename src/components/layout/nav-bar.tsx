@@ -13,7 +13,9 @@ import {
   Calendar, 
   GitBranch, 
   Clock, 
-  Zap 
+  Zap,
+  Moon,
+  Sun
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -24,7 +26,7 @@ import {
 
 export function NavBar() {
   const { t, i18n } = useTranslation();
-  const { setLanguage } = useAuth();
+  const { setLanguage, theme, toggleTheme } = useAuth();
 
   const changeLanguage = (lang: "en" | "te") => {
     setLanguage(lang);
@@ -62,7 +64,11 @@ export function NavBar() {
           </div>
         </div>
 
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2">
+          <Button variant="ghost" size="icon" onClick={toggleTheme}>
+            {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+          </Button>
+          
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2">
