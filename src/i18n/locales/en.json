@@ -25,6 +25,7 @@
   },
   "tasks": {
     "title": "Family Tasks",
+    "description": "Keep the household running smoothly.",
     "add": "Add Task",
     "done": "Done",
     "assign": "Assign To",
@@ -34,6 +35,7 @@
   },
   "shopping": {
     "title": "Shopping List",
+    "description": "Never miss an item again.",
     "addItem": "Add Item",
     "quantity": "Quantity",
     "checked": "Checked",
@@ -63,6 +65,7 @@
   },
   "tree": {
     "title": "Family Tree",
+    "description": "Build and visualize your family legacy.",
     "addPerson": "Add Person",
     "relationship": "Relationship",
     "parentChild": "Parent → Child",

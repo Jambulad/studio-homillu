@@ -48,7 +48,7 @@ export default function ShoppingPage() {
           <ShoppingBag className="h-8 w-8" />
           {t("shopping.title")}
         </h1>
-        <p className="text-muted-foreground mt-1">Never miss an item again.</p>
+        <p className="text-muted-foreground mt-1">{t("shopping.description")}</p>
       </div>
 
       <div className="flex gap-4 p-4 bg-card rounded-xl shadow-sm border">

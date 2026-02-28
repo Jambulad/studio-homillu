@@ -56,7 +56,7 @@ export default function FamilyTreePage() {
             {t("tree.title")}
           </h1>
           <p className="text-muted-foreground mt-1">
-            Build and visualize your family legacy.
+            {t("tree.description")}
           </p>
         </div>
         <div className="flex gap-2">

@@ -37,7 +37,7 @@ export default function TasksPage() {
             <CheckSquare className="h-8 w-8" />
             {t("tasks.title")}
           </h1>
-          <p className="text-muted-foreground mt-1">Keep the household running smoothly.</p>
+          <p className="text-muted-foreground mt-1">{t("tasks.description")}</p>
         </div>
         <Button className="gap-2 shadow-lg">
           <Plus className="h-4 w-4" />
