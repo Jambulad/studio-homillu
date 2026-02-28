@@ -2,10 +2,12 @@
 "use client"
 
 import "./globals.css";
-import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { AuthProvider } from "@/lib/auth-context";
 import { I18nProvider } from "@/components/providers/i18n-provider";
 import { NavBar } from "@/components/layout/nav-bar";
 import { Toaster } from "@/components/ui/toaster";
+import { FirebaseClientProvider } from "@/firebase";
+import { useAuth } from "@/lib/auth-context";
 import { cn } from "@/lib/utils";
 
 function RootContent({ children }: { children: React.ReactNode }) {
@@ -39,10 +41,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <AuthProvider>
-      <RootContent>
-        {children}
-      </RootContent>
-    </AuthProvider>
+    <FirebaseClientProvider>
+      <AuthProvider>
+        <RootContent>
+          {children}
+        </RootContent>
+      </AuthProvider>
+    </FirebaseClientProvider>
   );
 }

@@ -15,18 +15,23 @@ import {
   Clock, 
   Zap,
   Moon,
-  Sun
+  Sun,
+  LogOut,
+  User as UserIcon
 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel
 } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export function NavBar() {
   const { t, i18n } = useTranslation();
-  const { setLanguage, theme, toggleTheme } = useAuth();
+  const { setLanguage, theme, toggleTheme, user, signIn, signOut } = useAuth();
 
   const changeLanguage = (lang: "en" | "te") => {
     setLanguage(lang);
@@ -43,12 +48,14 @@ export function NavBar() {
     { href: "/utilities", label: t("nav.utilities"), icon: Zap },
   ];
 
+  const appName = i18n.language === "te" ? "హోమిల్లు" : "HomIllu";
+
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center space-x-2 font-headline text-2xl font-bold text-primary">
-            <span>{t("common.appName")}</span>
+            <span>{appName}</span>
           </Link>
           <div className="hidden lg:flex items-center space-x-4">
             {navItems.map((item) => (
@@ -64,7 +71,7 @@ export function NavBar() {
           </div>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-3">
           <Button variant="ghost" size="icon" onClick={toggleTheme}>
             {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
           </Button>
@@ -85,6 +92,40 @@ export function NavBar() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0">
+                  <Avatar className="h-9 w-9 border-2 border-primary/20">
+                    <AvatarImage src={user.photoURL || ""} alt={user.displayName || "User"} />
+                    <AvatarFallback className="bg-primary/10">
+                      <UserIcon className="h-5 w-5 text-primary" />
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">{user.displayName}</p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {user.email}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={signOut} className="text-destructive focus:text-destructive">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>{i18n.language === "te" ? "లాగ్ అవుట్" : "Log out"}</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button onClick={signIn} size="sm" className="shadow-sm">
+              {i18n.language === "te" ? "ప్రవేశించు" : "Sign In"}
+            </Button>
+          )}
         </div>
       </div>
     </nav>

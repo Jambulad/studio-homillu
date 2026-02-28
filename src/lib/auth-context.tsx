@@ -2,60 +2,62 @@
 "use client"
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { useUser } from "@/firebase";
+import { 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signOut, 
+  Auth
+} from "firebase/auth";
+import { useAuth as useFirebaseAuth } from "@/firebase";
 
 type Language = "en" | "te";
 type Theme = "light" | "dark";
 
-interface User {
+interface AuthUser {
   uid: string;
-  displayName: string;
-  email: string;
+  displayName: string | null;
+  email: string | null;
+  photoURL: string | null;
   preferredLanguage: Language;
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: AuthUser | null;
   setLanguage: (lang: Language) => void;
   theme: Theme;
   toggleTheme: () => void;
   isLoading: boolean;
+  signIn: () => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user: firebaseUser, loading: userLoading } = useUser();
+  const auth = useFirebaseAuth();
   const [theme, setTheme] = useState<Theme>("light");
+  const [language, setLanguageState] = useState<Language>("en");
 
   useEffect(() => {
-    // Initial data load
     const storedLang = localStorage.getItem("preferredLanguage") as Language;
     const storedTheme = localStorage.getItem("theme") as Theme;
     
     if (storedTheme) {
       setTheme(storedTheme);
-    } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+    } else if (typeof window !== 'undefined' && window.matchMedia("(prefers-color-scheme: dark)").matches) {
       setTheme("dark");
     }
 
-    const timer = setTimeout(() => {
-      setUser({
-        uid: "user-123",
-        displayName: "Srinivas Rao",
-        email: "srinivas@example.com",
-        preferredLanguage: storedLang || "en",
-      });
-      setIsLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
+    if (storedLang) {
+      setLanguageState(storedLang);
+    }
   }, []);
 
   const setLanguage = (lang: Language) => {
-    if (user) {
-      setUser({ ...user, preferredLanguage: lang });
-      localStorage.setItem("preferredLanguage", lang);
-    }
+    setLanguageState(lang);
+    localStorage.setItem("preferredLanguage", lang);
   };
 
   const toggleTheme = () => {
@@ -64,8 +66,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem("theme", newTheme);
   };
 
+  const signIn = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Error signing in", error);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Error signing out", error);
+    }
+  };
+
+  const authUser: AuthUser | null = firebaseUser ? {
+    uid: firebaseUser.uid,
+    displayName: firebaseUser.displayName,
+    email: firebaseUser.email,
+    photoURL: firebaseUser.photoURL,
+    preferredLanguage: language
+  } : null;
+
   return (
-    <AuthContext.Provider value={{ user, setLanguage, theme, toggleTheme, isLoading }}>
+    <AuthContext.Provider value={{ 
+      user: authUser, 
+      setLanguage, 
+      theme, 
+      toggleTheme, 
+      isLoading: userLoading,
+      signIn,
+      signOut: handleSignOut
+    }}>
       {children}
     </AuthContext.Provider>
   );
