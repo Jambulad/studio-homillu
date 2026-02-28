@@ -48,7 +48,7 @@ export function NavBar() {
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center space-x-2 font-headline text-2xl font-bold text-primary">
-            <span>HomIllu</span>
+            <span>{t("common.appName")}</span>
           </Link>
           <div className="hidden lg:flex items-center space-x-4">
             {navItems.map((item) => (
