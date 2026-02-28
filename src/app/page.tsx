@@ -62,7 +62,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6">
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -89,19 +89,6 @@ export default function DashboardPage() {
               <div className="h-2 w-full rounded-full bg-secondary">
                 <div className="h-2 w-[62%] rounded-full bg-primary" />
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle>Recent Memories</CardTitle>
-            <CardDescription>Moments from last weekend</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-2">
-              <img src="https://picsum.photos/seed/mem1/300/200" alt="Memory 1" className="rounded-md object-cover w-full h-24 shadow-sm" />
-              <img src="https://picsum.photos/seed/mem2/300/200" alt="Memory 2" className="rounded-md object-cover w-full h-24 shadow-sm" />
             </div>
           </CardContent>
         </Card>
