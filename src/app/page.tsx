@@ -33,10 +33,10 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight text-primary">
-          Namaste, {user?.displayName || "Family"}!
+          {t("dashboard.greeting", { name: user?.displayName || "Family" })}
         </h1>
         <p className="text-muted-foreground">
-          Welcome back to HomIllu. Here is what's happening with your family today.
+          {t("dashboard.description")}
         </p>
       </div>
 

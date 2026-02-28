@@ -11,6 +11,10 @@
     "language": "Language",
     "loading": "Loading..."
   },
+  "dashboard": {
+    "greeting": "Namaste, {{name}}!",
+    "description": "Welcome back to HomIllu. Here is what's happening with your family today."
+  },
   "nav": {
     "tasks": "Tasks & Chores",
     "shopping": "Shopping List",
