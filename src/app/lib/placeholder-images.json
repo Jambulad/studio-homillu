@@ -1,0 +1,29 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "avatar-father",
+      "description": "Father avatar",
+      "imageUrl": "https://picsum.photos/seed/father/200/200",
+      "imageHint": "father man"
+    },
+    {
+      "id": "avatar-mother",
+      "description": "Mother avatar",
+      "imageUrl": "https://picsum.photos/seed/mother/200/200",
+      "imageHint": "mother woman"
+    },
+    {
+      "id": "avatar-son",
+      "description": "Son avatar",
+      "imageUrl": "https://picsum.photos/seed/son/200/200",
+      "imageHint": "boy child"
+    },
+    {
+      "id": "hero-family",
+      "description": "Happy family",
+      "imageUrl": "https://picsum.photos/seed/family/1200/600",
+      "imageHint": "happy family"
+    }
+  ]
+}

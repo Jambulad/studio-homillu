@@ -1,0 +1,71 @@
+
+{
+  "common": {
+    "appName": "HomIllu",
+    "dashboard": "Dashboard",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "language": "Language",
+    "loading": "Loading..."
+  },
+  "nav": {
+    "tasks": "Tasks & Chores",
+    "shopping": "Shopping List",
+    "calendar": "Family Calendar",
+    "tree": "Family Tree",
+    "moments": "Moments",
+    "utilities": "Utilities"
+  },
+  "tasks": {
+    "title": "Family Tasks",
+    "add": "Add Task",
+    "done": "Done",
+    "assign": "Assign To",
+    "recurrence": "Recurrence",
+    "noTasks": "No tasks yet. Enjoy your day!",
+    "status": "Status"
+  },
+  "shopping": {
+    "title": "Shopping List",
+    "addItem": "Add Item",
+    "quantity": "Quantity",
+    "checked": "Checked",
+    "favorites": "Favorites",
+    "noItems": "List is empty."
+  },
+  "calendar": {
+    "title": "Family Calendar",
+    "events": "Events",
+    "allDay": "All Day",
+    "invite": "Invite Member",
+    "newEvent": "New Event"
+  },
+  "moments": {
+    "title": "Family Moments",
+    "lastOilChange": "Last Oil Change",
+    "countdown": "Countdown",
+    "daysUntil": "days until vacation",
+    "addMoment": "Add Moment"
+  },
+  "utilities": {
+    "title": "Utilities & Bills",
+    "electricity": "Electricity Reading",
+    "water": "Water Reading",
+    "chart": "Show Chart",
+    "history": "Billing History"
+  },
+  "tree": {
+    "title": "Family Tree",
+    "addPerson": "Add Person",
+    "relationship": "Relationship",
+    "parentChild": "Parent → Child",
+    "spouse": "Spouse",
+    "sibling": "Sibling",
+    "birth": "Birth Date",
+    "death": "Death Date",
+    "generateDescription": "AI Profile Summary"
+  }
+}
