@@ -44,10 +44,14 @@
   },
   "calendar": {
     "title": "Family Calendar",
+    "description": "Coordinate your family's schedule and events.",
     "events": "Events",
     "allDay": "All Day",
     "invite": "Invite Member",
-    "newEvent": "New Event"
+    "newEvent": "New Event",
+    "export": "Export Calendar",
+    "noEvents": "No events for this day.",
+    "eventTitle": "Event Title"
   },
   "moments": {
     "title": "Family Moments",
