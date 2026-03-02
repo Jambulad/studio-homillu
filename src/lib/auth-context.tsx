@@ -72,10 +72,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await signInWithPopup(auth, provider);
     } catch (error: any) {
       console.error("Error signing in", error);
+      
+      let errorMessage = error.message || "Failed to sign in with Google.";
+      
+      // Provide a direct fix for the common 'blocked' error
+      if (error.code === 'auth/internal-error' || errorMessage.includes('blocked')) {
+        errorMessage = "Identity Toolkit API is blocked. Please visit the Google Cloud Console and ensure your API key restriction allows 'Identity Toolkit API'.";
+      }
+
       toast({
         variant: "destructive",
         title: "Authentication Error",
-        description: error.message || "Failed to sign in with Google. Please check your API key restrictions in the Google Cloud Console.",
+        description: errorMessage,
       });
     }
   };
