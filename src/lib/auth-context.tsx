@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { createContext, useContext, useState, useEffect } from "react";
@@ -6,10 +5,10 @@ import { useUser } from "@/firebase";
 import { 
   GoogleAuthProvider, 
   signInWithPopup, 
-  signOut, 
-  Auth
+  signOut 
 } from "firebase/auth";
 import { useAuth as useFirebaseAuth } from "@/firebase";
+import { useToast } from "@/hooks/use-toast";
 
 type Language = "en" | "te";
 type Theme = "light" | "dark";
@@ -37,6 +36,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user: firebaseUser, loading: userLoading } = useUser();
   const auth = useFirebaseAuth();
+  const { toast } = useToast();
   const [theme, setTheme] = useState<Theme>("light");
   const [language, setLanguageState] = useState<Language>("en");
 
@@ -70,16 +70,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error signing in", error);
+      toast({
+        variant: "destructive",
+        title: "Authentication Error",
+        description: error.message || "Failed to sign in with Google. Please check your API key restrictions in the Google Cloud Console.",
+      });
     }
   };
 
   const handleSignOut = async () => {
     try {
       await signOut(auth);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error signing out", error);
+      toast({
+        variant: "destructive",
+        title: "Sign Out Error",
+        description: "Failed to sign out properly.",
+      });
     }
   };
 
