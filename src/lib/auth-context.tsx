@@ -75,7 +75,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       let errorMessage = error.message || "Failed to sign in with Google.";
       
-      // Provide a direct fix for the common 'blocked' error
+      // Handle 'configuration-not-found'
+      if (error.code === 'auth/configuration-not-found') {
+        errorMessage = "Google Sign-In is not enabled. Please go to the Firebase Console -> Authentication -> Sign-in method and enable Google.";
+      }
+      
+      // Handle 'blocked' error
       if (error.code === 'auth/internal-error' || errorMessage.includes('blocked')) {
         errorMessage = "Identity Toolkit API is blocked. Please visit the Google Cloud Console and ensure your API key restriction allows 'Identity Toolkit API'.";
       }
