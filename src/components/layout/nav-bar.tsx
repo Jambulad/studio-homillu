@@ -12,11 +12,11 @@ import {
   Calendar, 
   GitBranch, 
   Clock, 
-  Zap,
-  Moon,
-  Sun,
-  LogOut,
-  User as UserIcon
+  Moon, 
+  Sun, 
+  LogOut, 
+  User as UserIcon,
+  Menu
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -27,10 +27,19 @@ import {
   DropdownMenuLabel
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { useState } from "react";
 
 export function NavBar() {
   const { t, i18n } = useTranslation();
   const { setLanguage, theme, toggleTheme, user, signIn, signOut } = useAuth();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const changeLanguage = (lang: "en" | "te") => {
     setLanguage(lang);
@@ -52,10 +61,44 @@ export function NavBar() {
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <div className="flex items-center gap-8">
+        <div className="flex items-center gap-4 lg:gap-8">
+          {/* Mobile Hamburger Menu */}
+          <div className="lg:hidden">
+            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="lg:hidden">
+                  <Menu className="h-6 w-6" />
+                  <span className="sr-only">Toggle navigation menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[300px] sm:w-[350px]">
+                <SheetHeader>
+                  <SheetTitle className="text-left font-bold text-primary text-2xl">
+                    {appName}
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="flex flex-col gap-4 py-8">
+                  {navItems.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-4 px-2 py-3 text-lg font-medium text-muted-foreground transition-colors hover:text-primary rounded-lg hover:bg-secondary/50"
+                    >
+                      <item.icon className="h-5 w-5" />
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
+
           <Link href="/" className="flex items-center space-x-2 font-headline text-2xl font-bold text-primary">
             <span>{appName}</span>
           </Link>
+
+          {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center space-x-4">
             {navItems.map((item) => (
               <Link
@@ -77,7 +120,7 @@ export function NavBar() {
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
+              <Button variant="outline" size="sm" className="hidden sm:flex gap-2">
                 <Globe className="h-4 w-4" />
                 {i18n.language === "en" ? "English" : "తెలుగు"}
               </Button>
@@ -86,7 +129,7 @@ export function NavBar() {
               <DropdownMenuItem onClick={() => changeLanguage("en")}>
                 English
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => changeLanguage("te")}>
+              <DropdownMenuItem onClick={() => lang === "te" ? changeLanguage("te") : changeLanguage("te")}>
                 తెలుగు
               </DropdownMenuItem>
             </DropdownMenuContent>
