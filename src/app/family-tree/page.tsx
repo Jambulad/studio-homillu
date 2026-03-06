@@ -26,11 +26,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const initialFamily: Person[] = [
-  { id: "1", name: "Ramesh Rao", birthDate: "15-05-1955", photoUrl: "https://picsum.photos/seed/1/200/200", role: "Grandfather" },
-  { id: "2", name: "Sita Lakshmi", birthDate: "12-10-1960", photoUrl: "https://picsum.photos/seed/2/200/200", role: "Grandmother", spouseId: "1" },
-  { id: "3", name: "Srinivas Rao", birthDate: "20-08-1985", photoUrl: "https://picsum.photos/seed/3/200/200", role: "Father", parentId: "1" },
-  { id: "4", name: "Anjali Rao", birthDate: "05-12-1988", photoUrl: "https://picsum.photos/seed/4/200/200", role: "Mother", spouseId: "3" },
-  { id: "5", name: "Aryan Rao", birthDate: "10-01-2015", photoUrl: "https://picsum.photos/seed/5/200/200", role: "Son", parentId: "3" },
+  { id: "1", name: "Jambula Chandraiah", birthDate: "01-01-1940", photoUrl: "https://picsum.photos/seed/grandfather/200/200", role: "Grandfather" },
+  { id: "2", name: "Jambula Laxmamma", birthDate: "01-01-1945", photoUrl: "https://picsum.photos/seed/grandmother/200/200", role: "Grandmother", spouseId: "1" },
+  { id: "3", name: "Jambula Sreerama Murthy", birthDate: "15-06-1970", photoUrl: "https://picsum.photos/seed/son/200/200", role: "Son", parentId: "1" },
+  { id: "4", name: "Jambula Latha", birthDate: "20-11-1975", photoUrl: "https://picsum.photos/seed/daughter/200/200", role: "Daughter", parentId: "1" },
 ];
 
 const nodeTypes = {
@@ -48,15 +47,21 @@ export default function FamilyTreePage() {
     let x = 0;
     let y = 0;
 
-    if (person.role?.includes("Grand")) {
+    if (person.role === "Grandfather") {
       y = 0;
-      x = person.role === "Grandfather" ? -150 : 150;
-    } else if (person.role === "Father" || person.role === "Mother") {
+      x = -150;
+    } else if (person.role === "Grandmother") {
+      y = 0;
+      x = 150;
+    } else if (person.role === "Son") {
       y = 250;
-      x = person.role === "Father" ? -150 : 150;
+      x = -150;
+    } else if (person.role === "Daughter") {
+      y = 250;
+      x = 150;
     } else {
       y = 500;
-      x = 0;
+      x = index * 100;
     }
 
     return {
