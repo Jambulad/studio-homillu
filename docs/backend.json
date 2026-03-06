@@ -1,40 +1,528 @@
 {
   "entities": {
     "UserProfile": {
-      "title": "User Profile",
-      "description": "User preferences and profile data stored in Firestore",
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
       "type": "object",
+      "description": "Represents a user's profile and preferences within the HomIllu application, linked to Firebase Authentication.",
       "properties": {
-        "displayName": {
+        "id": {
           "type": "string",
-          "description": "The user's full name"
+          "description": "Unique identifier for the UserProfile entity, corresponding to the Firebase Authentication UID."
         },
         "email": {
           "type": "string",
-          "format": "email",
-          "description": "The user's email address"
+          "description": "The user's email address.",
+          "format": "email"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The user's preferred display name."
         },
         "preferredLanguage": {
           "type": "string",
-          "enum": ["en", "te"],
-          "description": "The user's preferred interface language"
+          "description": "The user's selected language preference ('en' for English, 'te' for Telugu). Defaults to 'en' upon signup.",
+          "items": {
+            "type": "string"
+          }
         },
-        "theme": {
-          "type": "string",
-          "enum": ["light", "dark"],
-          "description": "The user's preferred UI theme"
+        "householdIds": {
+          "type": "array",
+          "description": "An array of IDs referencing Household entities that this user is a member of. (Relationship: UserProfile N:N Household)",
+          "items": {
+            "type": "string"
+          }
         }
       },
-      "required": ["displayName", "email"]
+      "required": [
+        "id",
+        "email",
+        "displayName",
+        "preferredLanguage"
+      ]
+    },
+    "Household": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Household",
+      "type": "object",
+      "description": "Represents a family or group that shares tasks, shopping lists, calendar events, and a family tree.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Household entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the household (e.g., 'Smith Family', 'My Home')."
+        },
+        "description": {
+          "type": "string",
+          "description": "An optional description for the household."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the household was created.",
+          "format": "date-time"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Reference to the UserProfile who created and owns this household. (Relationship: UserProfile 1:N Household)"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "createdAt",
+        "ownerId"
+      ]
+    },
+    "Task": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Task",
+      "type": "object",
+      "description": "Represents a task or chore assigned within a household.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Task entity."
+        },
+        "householdId": {
+          "type": "string",
+          "description": "Reference to the Household this task belongs to. (Relationship: Household 1:N Task)"
+        },
+        "title": {
+          "type": "string",
+          "description": "The title or brief description of the task."
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed description of the task (optional)."
+        },
+        "assignedToId": {
+          "type": "string",
+          "description": "Reference to the UserProfile assigned to this task (optional). (Relationship: UserProfile 1:N Task)"
+        },
+        "dueDate": {
+          "type": "string",
+          "description": "The due date and time for the task (optional).",
+          "format": "date-time"
+        },
+        "isCompleted": {
+          "type": "boolean",
+          "description": "Indicates whether the task has been completed."
+        },
+        "completedAt": {
+          "type": "string",
+          "description": "Timestamp when the task was marked as completed (optional, only if isCompleted is true).",
+          "format": "date-time"
+        },
+        "recurrence": {
+          "type": "string",
+          "description": "Describes the recurrence pattern of the task (e.g., 'none', 'daily', 'weekly', 'monthly')."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the task was created.",
+          "format": "date-time"
+        },
+        "createdByUserId": {
+          "type": "string",
+          "description": "Reference to the UserProfile who created this task. (Relationship: UserProfile 1:N Task)"
+        }
+      },
+      "required": [
+        "id",
+        "householdId",
+        "title",
+        "isCompleted",
+        "recurrence",
+        "createdAt",
+        "createdByUserId"
+      ]
+    },
+    "ShoppingListItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ShoppingListItem",
+      "type": "object",
+      "description": "Represents an item on a shared shopping list for a household.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ShoppingListItem entity."
+        },
+        "householdId": {
+          "type": "string",
+          "description": "Reference to the Household this shopping item belongs to. (Relationship: Household 1:N ShoppingListItem)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the shopping item (e.g., 'Milk', 'Eggs')."
+        },
+        "quantity": {
+          "type": "number",
+          "description": "The quantity of the item needed."
+        },
+        "unit": {
+          "type": "string",
+          "description": "The unit of measurement for the quantity (e.g., 'pcs', 'kg', 'liter', optional)."
+        },
+        "isChecked": {
+          "type": "boolean",
+          "description": "Indicates whether the item has been purchased or checked off the list."
+        },
+        "isFavorite": {
+          "type": "boolean",
+          "description": "Indicates whether this item is a favorite for quick re-addition."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the shopping item was added.",
+          "format": "date-time"
+        },
+        "addedByUserId": {
+          "type": "string",
+          "description": "Reference to the UserProfile who added this item. (Relationship: UserProfile 1:N ShoppingListItem)"
+        }
+      },
+      "required": [
+        "id",
+        "householdId",
+        "name",
+        "quantity",
+        "isChecked",
+        "isFavorite",
+        "createdAt",
+        "addedByUserId"
+      ]
+    },
+    "CalendarEvent": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CalendarEvent",
+      "type": "object",
+      "description": "Represents a family event or appointment on a shared calendar.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the CalendarEvent entity."
+        },
+        "householdId": {
+          "type": "string",
+          "description": "Reference to the Household this event belongs to. (Relationship: Household 1:N CalendarEvent)"
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the event."
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed description of the event (optional)."
+        },
+        "startDateTime": {
+          "type": "string",
+          "description": "The start date and time of the event.",
+          "format": "date-time"
+        },
+        "endDateTime": {
+          "type": "string",
+          "description": "The end date and time of the event (optional, for events with duration).",
+          "format": "date-time"
+        },
+        "isAllDay": {
+          "type": "boolean",
+          "description": "Indicates if the event is an all-day event."
+        },
+        "location": {
+          "type": "string",
+          "description": "The physical or virtual location of the event (optional)."
+        },
+        "invitedMemberIds": {
+          "type": "array",
+          "description": "An array of IDs referencing UserProfiles invited to this event (optional). (Relationship: UserProfile N:N CalendarEvent)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the event was created.",
+          "format": "date-time"
+        },
+        "createdByUserId": {
+          "type": "string",
+          "description": "Reference to the UserProfile who created this event. (Relationship: UserProfile 1:N CalendarEvent)"
+        }
+      },
+      "required": [
+        "id",
+        "householdId",
+        "title",
+        "startDateTime",
+        "isAllDay",
+        "createdAt",
+        "createdByUserId"
+      ]
+    },
+    "Person": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Person",
+      "type": "object",
+      "description": "Represents an individual family member within the interactive family tree.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Person entity."
+        },
+        "householdId": {
+          "type": "string",
+          "description": "Reference to the Household this person belongs to. (Relationship: Household 1:N Person)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The full name of the family member."
+        },
+        "photoUrl": {
+          "type": "string",
+          "description": "URL to the family member's profile photo (optional).",
+          "format": "uri"
+        },
+        "birthDate": {
+          "type": "string",
+          "description": "The birth date of the family member (optional).",
+          "format": "date"
+        },
+        "deathDate": {
+          "type": "string",
+          "description": "The death date of the family member (optional).",
+          "format": "date"
+        },
+        "gender": {
+          "type": "string",
+          "description": "The gender of the family member (e.g., 'male', 'female', 'other', optional)."
+        },
+        "description": {
+          "type": "string",
+          "description": "A descriptive text about the family member, possibly AI-generated (optional)."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when this person was added to the family tree.",
+          "format": "date-time"
+        },
+        "createdByUserId": {
+          "type": "string",
+          "description": "Reference to the UserProfile who added this person. (Relationship: UserProfile 1:N Person)"
+        }
+      },
+      "required": [
+        "id",
+        "householdId",
+        "name",
+        "createdAt",
+        "createdByUserId"
+      ]
+    },
+    "Relationship": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Relationship",
+      "type": "object",
+      "description": "Represents a relationship between two Person entities in the family tree.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Relationship entity."
+        },
+        "householdId": {
+          "type": "string",
+          "description": "Reference to the Household this relationship belongs to. (Relationship: Household 1:N Relationship)"
+        },
+        "person1Id": {
+          "type": "string",
+          "description": "Reference to the first Person in the relationship. (Relationship: Person 1:N Relationship)"
+        },
+        "person2Id": {
+          "type": "string",
+          "description": "Reference to the second Person in the relationship. (Relationship: Person 1:N Relationship)"
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of relationship (e.g., 'parent-child', 'spouse', 'sibling')."
+        },
+        "startDate": {
+          "type": "string",
+          "description": "The start date of the relationship (e.g., marriage date for spouses, optional).",
+          "format": "date"
+        },
+        "endDate": {
+          "type": "string",
+          "description": "The end date of the relationship (e.g., divorce date, optional).",
+          "format": "date"
+        },
+        "description": {
+          "type": "string",
+          "description": "A descriptive text about the relationship, possibly AI-generated (optional)."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when this relationship was added.",
+          "format": "date-time"
+        },
+        "createdByUserId": {
+          "type": "string",
+          "description": "Reference to the UserProfile who added this relationship. (Relationship: UserProfile 1:N Relationship)"
+        }
+      },
+      "required": [
+        "id",
+        "householdId",
+        "person1Id",
+        "person2Id",
+        "type",
+        "createdAt",
+        "createdByUserId"
+      ]
     }
   },
   "auth": {
-    "providers": ["google.com"]
+    "providers": [
+      "password",
+      "anonymous"
+    ]
   },
   "firestore": {
-    "/users/{userId}": {
-      "schema": "UserProfile",
-      "description": "Stores user-specific settings and preferences"
-    }
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores user profiles, preferences, and an array of household IDs the user belongs to. The `userId` matches the Firebase Authentication UID. This collection is private to each user.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user, matching `request.auth.uid`."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/households/{householdId}",
+        "definition": {
+          "entityName": "Household",
+          "schema": {
+            "$ref": "#/backend/entities/Household"
+          },
+          "description": "Represents a shared family or group. Includes an `ownerId` and a denormalized `members` map (`members: { [uid: string]: \"role\" }`) to define user access roles (e.g., 'member', 'admin') within the household for authorization.",
+          "params": [
+            {
+              "name": "householdId",
+              "description": "The unique identifier for the household."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/households/{householdId}/tasks/{taskId}",
+        "definition": {
+          "entityName": "Task",
+          "schema": {
+            "$ref": "#/backend/entities/Task"
+          },
+          "description": "Stores tasks and chores specific to a household. Includes denormalized `householdMembers` map (copied from the parent household) for authorization independence, allowing atomic security rule evaluation.",
+          "params": [
+            {
+              "name": "householdId",
+              "description": "The unique identifier of the parent household."
+            },
+            {
+              "name": "taskId",
+              "description": "The unique identifier for the task."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/households/{householdId}/shoppingListItems/{shoppingListItemId}",
+        "definition": {
+          "entityName": "ShoppingListItem",
+          "schema": {
+            "$ref": "#/backend/entities/ShoppingListItem"
+          },
+          "description": "Stores shopping list items for a specific household. Includes denormalized `householdMembers` map (copied from the parent household) for authorization independence.",
+          "params": [
+            {
+              "name": "householdId",
+              "description": "The unique identifier of the parent household."
+            },
+            {
+              "name": "shoppingListItemId",
+              "description": "The unique identifier for the shopping list item."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/households/{householdId}/calendarEvents/{calendarEventId}",
+        "definition": {
+          "entityName": "CalendarEvent",
+          "schema": {
+            "$ref": "#/backend/entities/CalendarEvent"
+          },
+          "description": "Stores calendar events specific to a household. Includes denormalized `householdMembers` map (copied from the parent household) for authorization independence.",
+          "params": [
+            {
+              "name": "householdId",
+              "description": "The unique identifier of the parent household."
+            },
+            {
+              "name": "calendarEventId",
+              "description": "The unique identifier for the calendar event."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/households/{householdId}/persons/{personId}",
+        "definition": {
+          "entityName": "Person",
+          "schema": {
+            "$ref": "#/backend/entities/Person"
+          },
+          "description": "Stores individual family members as nodes in the family tree for a specific household. Includes denormalized `householdMembers` map (copied from the parent household) for authorization independence.",
+          "params": [
+            {
+              "name": "householdId",
+              "description": "The unique identifier of the parent household."
+            },
+            {
+              "name": "personId",
+              "description": "The unique identifier for the person in the family tree."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/households/{householdId}/relationships/{relationshipId}",
+        "definition": {
+          "entityName": "Relationship",
+          "schema": {
+            "$ref": "#/backend/entities/Relationship"
+          },
+          "description": "Stores relationships between persons in the family tree for a specific household. Includes denormalized `householdMembers` map (copied from the parent household) for authorization independence.",
+          "params": [
+            {
+              "name": "householdId",
+              "description": "The unique identifier of the parent household."
+            },
+            {
+              "name": "relationshipId",
+              "description": "The unique identifier for the relationship."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The recommended Firestore structure for the HomIllu application prioritizes security, scalability, and debuggability by strictly adhering to the core design principles, especially Authorization Independence via Denormalization and Structural Segregation.\n\n**Authorization Independence (CRITICAL) via Denormalization:**\n\n1.  **User Profiles (`/users/{userId}`):** User profiles are stored in a top-level collection, with `userId` directly corresponding to `request.auth.uid` from Firebase Authentication. This inherently provides robust, path-based authorization where users can only access their own profile. The `householdIds` array within `UserProfile` allows users to quickly identify which households they are members of without complex queries or rule dependencies.\n\n2.  **Household Membership Denormalization:** The `Household` entity (`/households/{householdId}`) is the central collaborative unit. To ensure Authorization Independence for all child entities, each `Household` document will include a `members` map (e.g., `members: { [uid: string]: \"member\" | \"admin\" }`). This map lists all user IDs that are part of the household along with their roles.\n\n3.  **Subcollection Denormalization:** For all subcollections of `Household` (i.e., `tasks`, `shoppingListItems`, `calendarEvents`, `persons`, `relationships`), their security depends on the membership of their parent `Household`. To eliminate costly and transaction-breaking `get()` calls in security rules, each document within these subcollections will contain a denormalized copy of the parent `Household`'s `members` map, named `householdMembers` (e.g., `householdMembers: { [uid: string]: \"member\" | \"admin\" }`). This means security rules can evaluate access solely based on the `resource.data` of the document being accessed, achieving atomic operations and simplified, highly performant rules like `allow read, write: if request.auth.uid in resource.data.householdMembers;`. A Cloud Function will be responsible for propagating changes from a `Household`'s `members` map to all relevant child documents upon update.\n\n**QAPs (Rules are not Filters) Support:**\n\n1.  **User Profiles (`/users/{userId}`):** Read access is secured by matching `userId` with `request.auth.uid`. No global list operation is required or permitted, inherently satisfying QAP.\n\n2.  **Households (`/households/{householdId}`):** To list households a user belongs to, clients can either query the `households` collection with `where(\"members.[request.auth.uid]\", \"exists\", true)` (or a similar query that leverages specific membership roles, potentially with a helper array `memberUids` if direct map key queries are insufficient for `list` rules) or, more practically, iterate through the `householdIds` in the user's `UserProfile` and perform individual `get()` requests. The security rule `allow read: if request.auth.uid in resource.data.members;` ensures that only members can read a specific household document. This prevents broad, unfiltered `list` queries, aligning with QAP.\n\n3.  **Subcollections (`/households/{householdId}/tasks`, etc.):** `List` operations for these subcollections are always performed within the context of a specific `householdId` (e.g., `/households/household123/tasks`). The security rule `allow read, write: if request.auth.uid in resource.data.householdMembers;` effectively ensures that only authorized members of that specific household can `list` its tasks, shopping items, etc. This structure naturally enforces QAP as the query path itself provides crucial authorization context, and the document-level denormalized data validates the user's access within that context.\n\n**Structural Segregation:**\nAll documents within a given collection or subcollection (`tasks`, `shoppingListItems`, `persons`, etc.) share the exact same security requirements – access by `householdMembers`. There are no mixed-security-posture documents (e.g., public vs. private) within the same collection, simplifying security rules significantly."
   }
 }
