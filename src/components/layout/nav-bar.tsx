@@ -1,3 +1,4 @@
+
 "use client"
 
 import Link from "next/link";
@@ -61,12 +62,12 @@ export function NavBar() {
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <div className="flex items-center gap-4 lg:gap-8">
-          {/* Mobile Hamburger Menu */}
-          <div className="lg:hidden">
+        <div className="flex items-center gap-4">
+          {/* Universal Hamburger Menu */}
+          <div>
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="lg:hidden">
+                <Button variant="ghost" size="icon" className="hover:bg-primary/10">
                   <Menu className="h-6 w-6" />
                   <span className="sr-only">Toggle navigation menu</span>
                 </Button>
@@ -97,20 +98,6 @@ export function NavBar() {
           <Link href="/" className="flex items-center space-x-2 font-headline text-2xl font-bold text-primary">
             <span>{appName}</span>
           </Link>
-
-          {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center space-x-4">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
-              >
-                <item.icon className="h-4 w-4" />
-                {item.label}
-              </Link>
-            ))}
-          </div>
         </div>
 
         <div className="flex items-center space-x-3">
@@ -129,7 +116,7 @@ export function NavBar() {
               <DropdownMenuItem onClick={() => changeLanguage("en")}>
                 English
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => lang === "te" ? changeLanguage("te") : changeLanguage("te")}>
+              <DropdownMenuItem onClick={() => changeLanguage("te")}>
                 తెలుగు
               </DropdownMenuItem>
             </DropdownMenuContent>
