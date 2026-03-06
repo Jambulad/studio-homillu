@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useTranslation } from "react-i18next";
@@ -11,14 +10,22 @@ import {
   Clock, 
   Zap,
   ChevronRight,
-  TrendingUp
+  TrendingUp,
+  Moon
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
+import { getMoonPhase } from "@/lib/lunar-utils";
+import { useState, useEffect } from "react";
 
 export default function DashboardPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const [moonData, setMoonData] = useState<ReturnType<typeof getMoonPhase> | null>(null);
+
+  useEffect(() => {
+    setMoonData(getMoonPhase());
+  }, []);
 
   const widgets = [
     { title: t("nav.tasks"), description: "4 tasks pending for today", icon: CheckSquare, color: "text-primary", href: "/tasks" },
@@ -26,7 +33,7 @@ export default function DashboardPage() {
     { title: t("nav.calendar"), description: "Family lunch at 1 PM", icon: Calendar, color: "text-orange-500", href: "/calendar" },
     { title: t("nav.tree"), description: "5 generations explored", icon: GitBranch, color: "text-teal-600", href: "/family-tree" },
     { title: t("nav.moments"), description: "2 days to Anniversary", icon: Clock, color: "text-pink-500", href: "/moments" },
-    { title: t("nav.utilities"), description: "Electricity bill due in 3 days", icon: Zap, color: "text-yellow-500", href: "/utilities" },
+    { title: t("nav.lunar"), description: moonData ? `${moonData.emoji} ${moonData.name}` : "Loading phase...", icon: Moon, color: "text-indigo-500", href: "/lunar" },
   ];
 
   return (
@@ -62,7 +69,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <div className="grid gap-6">
+      <div className="grid gap-6 md:grid-cols-2">
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -92,6 +99,35 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
+
+        {moonData && (
+          <Card className="shadow-sm relative overflow-hidden bg-indigo-50/30 dark:bg-indigo-950/10">
+            <div className="absolute top-0 right-0 p-6 opacity-10">
+              <Moon className="h-20 w-20 text-indigo-500" />
+            </div>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
+                <Moon className="h-5 w-5" />
+                {t("lunar.currentPhase")}
+              </CardTitle>
+              <CardDescription>For today, {new Date().toLocaleDateString()}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex items-center gap-6">
+              <div className="text-6xl drop-shadow-md">{moonData.emoji}</div>
+              <div>
+                <h3 className="text-2xl font-bold">{moonData.name}</h3>
+                <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mt-1">
+                  Illumination: {Math.round((1 - Math.abs(0.5 - moonData.phase) * 2) * 100)}%
+                </p>
+                <Link href="/lunar">
+                  <span className="text-xs text-indigo-500 hover:underline mt-2 inline-block font-bold">
+                    Explore Lunar Calendar &rarr;
+                  </span>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

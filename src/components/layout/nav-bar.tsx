@@ -1,4 +1,3 @@
-
 "use client"
 
 import Link from "next/link";
@@ -45,7 +44,7 @@ export function NavBar() {
     { href: "/calendar", label: t("nav.calendar"), icon: Calendar },
     { href: "/family-tree", label: t("nav.tree"), icon: GitBranch },
     { href: "/moments", label: t("nav.moments"), icon: Clock },
-    { href: "/utilities", label: t("nav.utilities"), icon: Zap },
+    { href: "/lunar", label: t("nav.lunar"), icon: Moon },
   ];
 
   const appName = i18n.language === "te" ? "హోమిల్లు" : "HomIllu";

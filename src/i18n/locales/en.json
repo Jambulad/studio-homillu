@@ -1,4 +1,3 @@
-
 {
   "common": {
     "appName": "HomIllu",
@@ -21,7 +20,8 @@
     "calendar": "Family Calendar",
     "tree": "Family Tree",
     "moments": "Moments",
-    "utilities": "Utilities"
+    "utilities": "Utilities",
+    "lunar": "Lunar Calendar"
   },
   "tasks": {
     "title": "Family Tasks",
@@ -78,5 +78,13 @@
     "birth": "Birth Date",
     "death": "Death Date",
     "generateDescription": "AI Profile Summary"
+  },
+  "lunar": {
+    "title": "Lunar Calendar",
+    "description": "Track moon phases and traditional dates.",
+    "currentPhase": "Current Phase",
+    "visibility": "Illumination",
+    "nextFullMoon": "Next Full Moon",
+    "nextNewMoon": "Next New Moon"
   }
 }
