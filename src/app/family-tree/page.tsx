@@ -1,15 +1,29 @@
 
 "use client"
 
-import { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { 
+  ReactFlow, 
+  Background, 
+  Controls, 
+  MiniMap, 
+  useNodesState, 
+  useEdgesState, 
+  addEdge,
+  Connection,
+  Edge,
+  Node,
+  Panel
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
+
 import { TreeNode, Person } from "@/components/features/family-tree/tree-node";
 import { Button } from "@/components/ui/button";
-import { Plus, GitBranch, Share2, ZoomIn, ZoomOut } from "lucide-react";
+import { Plus, GitBranch, Share2, Info } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 const initialFamily: Person[] = [
   { id: "1", name: "Ramesh Rao", birthDate: "15-05-1955", photoUrl: "https://picsum.photos/seed/1/200/200", role: "Grandfather" },
@@ -19,36 +33,96 @@ const initialFamily: Person[] = [
   { id: "5", name: "Aryan Rao", birthDate: "10-01-2015", photoUrl: "https://picsum.photos/seed/5/200/200", role: "Son", parentId: "3" },
 ];
 
+const nodeTypes = {
+  familyMember: TreeNode,
+};
+
 export default function FamilyTreePage() {
   const { t } = useTranslation();
-  const [family, setFamily] = useState<Person[]>(initialFamily);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newPerson, setNewPerson] = useState<Partial<Person>>({ name: "", birthDate: "" });
-  const [zoom, setZoom] = useState(1);
+
+  // Convert family data to Flow nodes and edges
+  const initialNodes: Node[] = initialFamily.map((person, index) => {
+    // Basic auto-layout based on role/parentage
+    let x = 0;
+    let y = 0;
+
+    if (person.role?.includes("Grand")) {
+      y = 0;
+      x = person.role === "Grandfather" ? -150 : 150;
+    } else if (person.role === "Father" || person.role === "Mother") {
+      y = 250;
+      x = person.role === "Father" ? -150 : 150;
+    } else {
+      y = 500;
+      x = 0;
+    }
+
+    return {
+      id: person.id,
+      type: "familyMember",
+      position: { x, y },
+      data: { person },
+    };
+  });
+
+  const initialEdges: Edge[] = [];
+  initialFamily.forEach((person) => {
+    if (person.parentId) {
+      initialEdges.push({
+        id: `e${person.parentId}-${person.id}`,
+        source: person.parentId,
+        target: person.id,
+        animated: true,
+        style: { stroke: 'hsl(var(--primary))', strokeWidth: 2 },
+      });
+    }
+    if (person.spouseId) {
+      initialEdges.push({
+        id: `e${person.id}-${person.spouseId}`,
+        source: person.id,
+        target: person.spouseId,
+        type: 'smoothstep',
+        label: 'Spouse',
+        style: { stroke: 'hsl(var(--accent))', strokeWidth: 2, strokeDasharray: '5,5' },
+      });
+    }
+  });
+
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+  const onConnect = useCallback(
+    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
+    [setEdges]
+  );
 
   const handleAdd = () => {
     if (newPerson.name && newPerson.birthDate) {
+      const id = Date.now().toString();
       const person: Person = {
-        id: Date.now().toString(),
+        id,
         name: newPerson.name,
         birthDate: newPerson.birthDate,
-        photoUrl: `https://picsum.photos/seed/${Date.now()}/200/200`,
+        photoUrl: `https://picsum.photos/seed/${id}/200/200`,
       };
-      setFamily([...family, person]);
+      
+      const newNode: Node = {
+        id,
+        type: "familyMember",
+        position: { x: Math.random() * 400 - 200, y: Math.random() * 400 },
+        data: { person },
+      };
+
+      setNodes((nds) => nds.concat(newNode));
       setIsAddOpen(false);
       setNewPerson({ name: "", birthDate: "" });
     }
   };
 
-  // Group members into generations for visualization
-  const generations = useMemo(() => [
-    { label: "Grandparents", members: family.filter(p => p.role?.includes("Grand")) },
-    { label: "Parents", members: family.filter(p => p.role === "Father" || p.role === "Mother") },
-    { label: "Children", members: family.filter(p => p.role === "Son" || p.role === "Daughter" || (!p.role?.includes("Grand") && p.parentId && !p.role?.includes("Mother") && !p.role?.includes("Father"))) }
-  ], [family]);
-
   return (
-    <div className="h-[calc(100vh-120px)] flex flex-col space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="h-[calc(100vh-140px)] flex flex-col space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-primary flex items-center gap-3">
@@ -60,15 +134,6 @@ export default function FamilyTreePage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <div className="flex items-center bg-secondary rounded-lg px-2 mr-2">
-            <Button variant="ghost" size="icon" onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}>
-              <ZoomOut className="h-4 w-4" />
-            </Button>
-            <span className="text-xs font-bold w-12 text-center">{Math.round(zoom * 100)}%</span>
-            <Button variant="ghost" size="icon" onClick={() => setZoom(Math.min(2, zoom + 0.1))}>
-              <ZoomIn className="h-4 w-4" />
-            </Button>
-          </div>
           <Button variant="outline" className="gap-2">
             <Share2 className="h-4 w-4" />
             Share
@@ -80,70 +145,39 @@ export default function FamilyTreePage() {
         </div>
       </div>
 
-      <div className="flex-1 relative bg-secondary/20 rounded-2xl border-2 border-dashed border-muted overflow-hidden">
-        <ScrollArea className="h-full w-full">
-          <div 
-            className="p-12 min-w-[1000px] flex flex-col items-center transition-transform duration-200 origin-top"
-            style={{ transform: `scale(${zoom})` }}
-          >
-            {generations.map((gen, gIdx) => (
-              <div key={gen.label} className="flex flex-col items-center w-full relative">
-                <div className="flex gap-20 justify-center mb-24 relative">
-                  {gen.members.map((person) => (
-                    <div key={person.id} className="relative">
-                      <TreeNode 
-                        person={person} 
-                        onEdit={() => {}} 
-                        onAddRelation={() => {}} 
-                      />
-                      
-                      {/* Spouse Connector */}
-                      {person.spouseId && (
-                        <div className="absolute top-1/2 -right-10 w-10 h-0.5 bg-primary/40 z-0" />
-                      )}
-
-                      {/* Visual Branch Connectors */}
-                      {gIdx < generations.length - 1 && (person.role === "Father" || person.role === "Grandfather") && (
-                        <svg className="absolute top-full left-1/2 -translate-x-1/2 w-[200px] h-24 overflow-visible pointer-events-none">
-                          <path 
-                            d="M 100 0 L 100 40" 
-                            stroke="hsl(var(--primary))" 
-                            strokeWidth="2" 
-                            fill="none" 
-                            className="opacity-40"
-                          />
-                          {/* If Grandfather, connect to children row */}
-                          {person.role === "Grandfather" && (
-                            <path 
-                              d="M 100 40 L 100 80" 
-                              stroke="hsl(var(--primary))" 
-                              strokeWidth="2" 
-                              fill="none" 
-                              className="opacity-40"
-                            />
-                          )}
-                          {/* If Father, spread to kids */}
-                          {person.role === "Father" && (
-                            <>
-                              <path 
-                                d="M 100 40 L 100 80" 
-                                stroke="hsl(var(--primary))" 
-                                strokeWidth="2" 
-                                fill="none" 
-                                className="opacity-40"
-                              />
-                              <circle cx="100" cy="40" r="3" fill="hsl(var(--primary))" className="opacity-60" />
-                            </>
-                          )}
-                        </svg>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
+      <div className="flex-1 bg-secondary/10 rounded-2xl border-2 border-dashed border-muted overflow-hidden relative shadow-inner">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          nodeTypes={nodeTypes}
+          fitView
+          className="bg-dot-pattern"
+        >
+          <Background color="hsl(var(--muted-foreground))" gap={20} size={1} opacity={0.1} />
+          <Controls className="fill-primary" />
+          <MiniMap 
+            nodeColor={(node) => 'hsl(var(--primary))'}
+            maskColor="rgba(0, 0, 0, 0.1)"
+            className="border-primary/20 bg-background/50 rounded-lg shadow-lg"
+          />
+          <Panel position="bottom-center" className="bg-background/80 backdrop-blur-md p-4 rounded-xl border shadow-xl flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-0.5 bg-primary" />
+              <span className="text-xs font-bold text-muted-foreground">Bloodline</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-0.5 bg-accent border-dashed border-t" />
+              <span className="text-xs font-bold text-muted-foreground">Marriage</span>
+            </div>
+            <div className="flex items-center gap-2 ml-4 text-xs text-muted-foreground italic">
+              <Info className="h-3 w-3" />
+              Drag nodes to reorganize
+            </div>
+          </Panel>
+        </ReactFlow>
       </div>
 
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
