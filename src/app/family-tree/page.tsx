@@ -20,8 +20,8 @@ import "@xyflow/react/dist/style.css";
 
 import { TreeNode, Person } from "@/components/features/family-tree/tree-node";
 import { Button } from "@/components/ui/button";
-import { Plus, GitBranch, Share2, Info, Loader2, Camera, Database, Trash2, CloudUpload, CheckCircle2 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Plus, GitBranch, Share2, Info, Loader2, Camera, Database, Trash2, CloudUpload, FileJson, Code } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,436 +34,26 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, serverTimestamp, doc, addDoc, setDoc, writeBatch } from "firebase/firestore";
+import { collection, serverTimestamp, doc, addDoc, setDoc } from "firebase/firestore";
 import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { useToast } from "@/hooks/use-toast";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const nodeTypes = {
   familyMember: TreeNode,
 };
 
-// Legacy Data Constants
-const LEGACY_DATA = {
-  "fname": "Changal Rayudu",
-  "DOB": "",
-  "spouse": "Wife: Eeramma",
-  "photo": "",
+const JSON_TEMPLATE = {
+  "fname": "Full Name",
+  "DOB": "Year or Date",
+  "spouse": "Wife: Name OR Husband: Name",
+  "description": "Short biography of the person",
   "children": [
     {
-      "fname": "Govindu",
-      "DOB": "",
-      "spouse": "Wife: Sulochana",
-      "photo": "",
-      "children": [
-        {
-          "fname": "Ravinder",
-          "DOB": "",
-          "spouse": "Wife: Sulochana",
-          "photo": "",
-          "children": [
-            {
-              "fname": "Chandrakala",
-              "DOB": "",
-              "spouse": "Husband: Ashok Kumar",
-              "photo": "",
-              "children": [
-                {
-                  "fname": "Vasrha Yadav",
-                  "DOB": "",
-                  "spouse": "",
-                  "photo": ""
-                },
-                {
-                  "fname": "Daughter2",
-                  "DOB": "",
-                  "spouse": "",
-                  "photo": ""
-                },
-                {
-                  "fname": "Daughter3",
-                  "DOB": "",
-                  "spouse": "",
-                  "photo": ""
-                }
-              ]
-            },
-            {
-              "fname": "Ramana",
-              "DOB": "",
-              "spouse": "Wife: Geetha",
-              "photo": "",
-              "children": [
-                {
-                  "fname": "Rakesh",
-                  "DOB": "",
-                  "spouse": "",
-                  "photo": ""
-                },
-                {
-                  "fname": "Poojitha",
-                  "DOB": "",
-                  "spouse": "",
-                  "photo": ""
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "fname": "Krishnappa",
-      "DOB": "",
-      "spouse": "Wife: ???",
-      "photo": ""
-    },
-    {
-      "fname": "Kuppamma",
-      "DOB": "",
-      "spouse": "Husband: Anjineyulu ",
-      "photo": "",
-      "children": [
-        {
-          "fname": "Kamala",
-          "DOB": "",
-          "spouse": "Husband: ???",
-          "photo": ""
-        },
-        {
-          "fname": "Aruna (Tamil Nadu)",
-          "DOB": "",
-          "spouse": "",
-          "photo": ""
-        },
-        {
-          "fname": "Sulochana (Balu Uncle valla Ammagaru)",
-          "DOB": "",
-          "spouse": "Husband: ???",
-          "photo": ""
-        },
-        {
-          "fname": "Indira (Late, Gtl)",
-          "DOB": "",
-          "spouse": "",
-          "photo": ""
-        },
-        {
-          "fname": "Jaya ()",
-          "DOB": "",
-          "spouse": "",
-          "photo": ""
-        },
-        {
-          "fname": "Satish (Gtl)",
-          "DOB": "",
-          "spouse": "Wife: Uma (daughter of Seenappa)",
-          "photo": "",
-          "children": [
-            {
-              "fname": "Sirisha",
-              "DOB": "",
-              "spouse": "Husband: Shiva",
-              "photo": "",
-              "children": [
-                {
-                  "fname": "Daughter",
-                  "DOB": "",
-                  "spouse": "",
-                  "photo": ""
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "fname": "Krishna Murthy ",
-          "DOB": "",
-          "spouse": "Wife:",
-          "photo": ""
-        }
-      ]
-    },
-    {
-      "fname": "Seenappa",
-      "DOB": "",
-      "spouse": "Wife: Papamma",
-      "photo": "",
-      "children": [
-        {
-          "fname": "Padma (Mumbai)",
-          "DOB": "",
-          "spouse": "Husband: Adhikeshavulu",
-          "photo": "",
-          "children": [
-            {
-              "fname": "Revathi",
-              "DOB": "",
-              "spouse": "",
-              "photo": ""
-            },
-            {
-              "fname": "Rajesh",
-              "DOB": "",
-              "spouse": "",
-              "photo": ""
-            },
-            {
-              "fname": "Bharathi",
-              "DOB": "",
-              "spouse": "",
-              "photo": ""
-            },
-            {
-              "fname": "Mallathi",
-              "DOB": "",
-              "spouse": "",
-              "photo": ""
-            }
-          ]
-        },
-        {
-          "fname": "Aruna (Ambathur, Tamil Nadu)",
-          "DOB": "",
-          "spouse": "Venu Gopalan",
-          "photo": "",
-          "children": [
-            {
-              "fname": "Vydehi",
-              "DOB": "",
-              "spouse": "",
-              "photo": ""
-            },
-            {
-              "fname": "Son(Lt)",
-              "DOB": "",
-              "spouse": "",
-              "photo": ""
-            }
-          ]
-        },
-        {
-          "fname": "Sathish (Bengaluru)",
-          "DOB": "",
-          "spouse": "Rani",
-          "photo": "",
-          "children": [
-            {
-              "fname": "Jayadev",
-              "DOB": "",
-              "spouse": "",
-              "photo": "",
-              "children": [
-                {
-                  "fname": "Son",
-                  "DOB": "",
-                  "spouse": "",
-                  "photo": ""
-                }
-              ]
-            },
-            {
-              "fname": "Poornima",
-              "DOB": "",
-              "spouse": "",
-              "photo": ""
-            },
-            {
-              "fname": "Manjunath",
-              "DOB": "",
-              "spouse": "",
-              "photo": "",
-              "children": [
-                {
-                  "fname": "Son",
-                  "DOB": "",
-                  "spouse": "",
-                  "photo": ""
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "fname": "Uma (Late, Gtl)",
-          "DOB": "",
-          "spouse": "",
-          "photo": ""
-        },
-        {
-          "fname": "Vasantha (Mumbai)",
-          "DOB": "",
-          "spouse": "",
-          "photo": ""
-        }
-      ]
-    },
-    {
-      "fname": "Chandraiah ",
-      "DOB": "1922",
-      "spouse": "Wife: Laxmamma (1928)",
-      "photo": "",
-      "children": [
-        {
-          "fname": "Sreerama Murthy ",
-          "DOB": "1956",
-          "spouse": "Wife: Padmavathamma (1963)",
-          "photo": "",
-          "children": [
-            {
-              "fname": "Dilip ",
-              "DOB": "1984",
-              "spouse": "Wife: Harshitha (1987)",
-              "photo": "",
-              "children": [
-                {
-                  "fname": "Vaishnavi ",
-                  "DOB": "26/06/2014",
-                  "spouse": "",
-                  "photo": ""
-                },
-                {
-                  "fname": "Dhruthi ",
-                  "DOB": "15/12/2018",
-                  "spouse": "",
-                  "photo": ""
-                }
-              ]
-            },
-            {
-              "fname": "Nikhil ",
-              "DOB": "1986",
-              "spouse": "Wife: Anahita (1992)",
-              "photo": "",
-              "children": [
-                {
-                  "fname": "Adhithi ",
-                  "DOB": "21/02/2018",
-                  "spouse": "",
-                  "photo": ""
-                },
-                {
-                  "fname": "Advaith ",
-                  "DOB": "05/02/2018",
-                  "spouse": "",
-                  "photo": ""
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "fname": "Asha Latha",
-          "DOB": "",
-          "spouse": "Husband: Manohar",
-          "photo": "",
-          "children": [
-            {
-              "fname": "Anisha Thella",
-              "DOB": "1987",
-              "spouse": "Husband: Ravi Jangiti",
-              "photo": "",
-              "children": [
-                {
-                  "fname": "Avi Thella",
-                  "DOB": "2015",
-                  "spouse": "",
-                  "photo": ""
-                },
-                {
-                  "fname": "Ashrav",
-                  "DOB": "2020",
-                  "spouse": "",
-                  "photo": ""
-                }
-              ]
-            },
-            {
-              "fname": "Manasa Thella",
-              "DOB": "1990",
-              "spouse": "Vivek",
-              "photo": "",
-              "children": [
-                {
-                  "fname": "Vicky",
-                  "DOB": "2020",
-                  "spouse": "",
-                  "photo": ""
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "fname": "Purushotham",
-      "DOB": "",
-      "spouse": "Wife: ???",
-      "photo": "",
-      "children": [
-        {
-          "fname": "Raja (Tirupathi)",
-          "DOB": "",
-          "spouse": "Wife: ???",
-          "photo": ""
-        },
-        {
-          "fname": "Ranga ",
-          "DOB": "",
-          "spouse": "Wife: ???",
-          "photo": ""
-        },
-        {
-          "fname": "Loka (Bellary)",
-          "DOB": "",
-          "spouse": "Wife: ",
-          "photo": ""
-        },
-        {
-          "fname": "Sathya ",
-          "DOB": "",
-          "spouse": "Wife: ???",
-          "photo": ""
-        }
-      ]
-    },
-    {
-      "fname": "Adhikeshavulu",
-      "DOB": "",
-      "spouse": "Wife: Kamallamma",
-      "photo": "",
-      "children": [
-        {
-          "fname": "Usha (Hyd)",
-          "DOB": "",
-          "spouse": "Husband: ???",
-          "photo": ""
-        },
-        {
-          "fname": "Suvi (Hyd)",
-          "DOB": "",
-          "spouse": "Husband: Srinath",
-          "photo": ""
-        },
-        {
-          "fname": "Sridevi (Hyd)",
-          "DOB": "",
-          "spouse": "Husband: ",
-          "photo": ""
-        },
-        {
-          "fname": "Parvathi ",
-          "DOB": "",
-          "spouse": "Husband: ",
-          "photo": ""
-        }
-      ]
-    },
-    {
-      "fname": "Siblings of Eeramma ",
-      "DOB": "",
-      "spouse": "1.Viraswamy(His son is Anjenyulu who is Kuppamma's Husband), 2.Sriptahi, 3.One More Son",
-      "photo": ""
+      "fname": "Child Name",
+      "DOB": "Year",
+      "description": "Bio for child",
+      "children": []
     }
   ]
 };
@@ -474,10 +64,12 @@ export default function FamilyTreePage() {
   const { user } = useUser();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importStep, setImportStep] = useState("");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadedJson, setUploadedJson] = useState<any>(null);
   
   const initialPersonState: Partial<Person & { relatedToId?: string, relationType?: string }> = { 
     name: "", 
@@ -603,6 +195,38 @@ export default function FamilyTreePage() {
     }
   };
 
+  const handleJsonUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.type !== "application/json") {
+        toast({
+          variant: "destructive",
+          title: "Invalid file type",
+          description: "Please upload a .json file.",
+        });
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const json = JSON.parse(event.target?.result as string);
+          setUploadedJson(json);
+          toast({
+            title: "JSON Loaded",
+            description: "Ready to import legacy records.",
+          });
+        } catch (err) {
+          toast({
+            variant: "destructive",
+            title: "Parse Error",
+            description: "Invalid JSON format in file.",
+          });
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
+
   const handleSave = async () => {
     if (!personForm.name || !user) return;
 
@@ -650,8 +274,8 @@ export default function FamilyTreePage() {
   };
 
   const handleBulkImport = async () => {
-    if (!user || !firestore) {
-      toast({ variant: "destructive", title: "Authentication Required", description: "Please sign in to publish your tree data." });
+    if (!user || !firestore || !uploadedJson) {
+      toast({ variant: "destructive", title: "Action Required", description: "Please upload a JSON file first." });
       return;
     }
     
@@ -659,7 +283,6 @@ export default function FamilyTreePage() {
     setImportStep("Initializing Household...");
 
     try {
-      // Ensure the root household document exists for the user
       const householdRef = doc(firestore, "households", user.uid);
       await setDoc(householdRef, {
         id: user.uid,
@@ -672,11 +295,11 @@ export default function FamilyTreePage() {
       const importNode = async (node: any, parentId?: string) => {
         setImportStep(`Importing ${node.fname}...`);
         
-        // Create primary person
         const personData = {
           householdId: user.uid,
           name: node.fname,
           birthDate: node.DOB || "",
+          description: node.description || "",
           gender: "male", 
           role: "Family Member",
           photoUrl: `https://picsum.photos/seed/${node.fname}/200/200`,
@@ -689,7 +312,6 @@ export default function FamilyTreePage() {
         const docRef = await addDoc(personsRef, personData);
         const personId = docRef.id;
 
-        // Create relationship to parent
         if (parentId) {
           const relRef = collection(firestore, "households", user.uid, "relationships");
           await addDoc(relRef, {
@@ -703,7 +325,6 @@ export default function FamilyTreePage() {
           });
         }
 
-        // Handle spouse
         if (node.spouse && node.spouse.trim() !== "" && !node.spouse.endsWith(":")) {
           const spouseLabel = node.spouse.toLowerCase().includes("wife") ? "Wife" : (node.spouse.toLowerCase().includes("husband") ? "Husband" : "Spouse");
           const spouseName = node.spouse.replace(/Wife:|Husband:/gi, '').trim();
@@ -713,6 +334,7 @@ export default function FamilyTreePage() {
               householdId: user.uid,
               name: spouseName,
               birthDate: "",
+              description: "",
               gender: spouseLabel === "Wife" ? "female" : "male",
               role: spouseLabel,
               photoUrl: `https://picsum.photos/seed/${spouseName}/200/200`,
@@ -733,7 +355,6 @@ export default function FamilyTreePage() {
           }
         }
 
-        // Recursively handle children
         if (node.children && Array.isArray(node.children)) {
           for (const child of node.children) {
             await importNode(child, personId);
@@ -741,17 +362,19 @@ export default function FamilyTreePage() {
         }
       };
 
-      await importNode(LEGACY_DATA);
+      await importNode(uploadedJson);
       toast({
-        title: "Tree Published!",
-        description: "Your lineage has been successfully synchronized and published to the cloud.",
+        title: "Import Success",
+        description: "Your lineage has been successfully synchronized.",
       });
+      setIsImportDialogOpen(false);
+      setUploadedJson(null);
     } catch (e: any) {
       console.error("Bulk Import Error:", e);
       toast({
         variant: "destructive",
         title: "Sync Failed",
-        description: e.message || "There was an error publishing your records. Please check your connection.",
+        description: e.message || "There was an error importing your records.",
       });
     } finally {
       setIsImporting(false);
@@ -781,11 +404,10 @@ export default function FamilyTreePage() {
           <Button 
             variant="outline" 
             className="gap-2 border-primary/20 hover:bg-primary/5 shadow-sm"
-            onClick={handleBulkImport}
-            disabled={isImporting || !user}
+            onClick={() => setIsImportDialogOpen(true)}
           >
-            {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}
-            {isImporting ? "Syncing..." : "Publish Legacy Tree"}
+            <FileJson className="h-4 w-4" />
+            Bulk Import JSON
           </Button>
           <Button className="gap-2 shadow-lg" onClick={() => { resetForm(); setIsDialogOpen(true); }}>
             <Plus className="h-4 w-4" />
@@ -801,10 +423,10 @@ export default function FamilyTreePage() {
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
               <div className="text-center">
                 <p className="text-lg font-bold">
-                  {isImporting ? "Synchronizing Records..." : "Connecting to Database..."}
+                  {isImporting ? "Processing JSON Records..." : "Connecting to Database..."}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {importStep || (isImporting ? "Building lineage relationships" : "Mapping your family's heritage")}
+                  {importStep || (isImporting ? "Building hierarchical links" : "Mapping your family's heritage")}
                 </p>
               </div>
             </div>
@@ -823,7 +445,7 @@ export default function FamilyTreePage() {
             <Background color="hsl(var(--muted-foreground))" gap={20} size={1} opacity={0.1} />
             <Controls className="fill-primary" />
             <MiniMap 
-              nodeColor={(node) => 'hsl(var(--primary))'}
+              nodeColor={() => 'hsl(var(--primary))'}
               maskColor="rgba(0, 0, 0, 0.1)"
               className="border-primary/20 bg-background/50 rounded-lg shadow-lg"
             />
@@ -845,6 +467,7 @@ export default function FamilyTreePage() {
         )}
       </div>
 
+      {/* Manual Entry Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -973,6 +596,69 @@ export default function FamilyTreePage() {
           <DialogFooter className="pt-4 border-t">
             <Button onClick={handleSave} className="w-full sm:w-auto font-bold px-8 py-6 text-lg">
               {isEditMode ? "Update Profile" : t("common.add")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Import Dialog */}
+      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+              <FileJson className="h-6 w-6 text-primary" />
+              Bulk Legacy Import
+            </DialogTitle>
+            <DialogDescription>
+              Upload a JSON file following the structure below to import your entire family lineage at once.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-6 py-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <Code className="h-3 w-3" />
+                Required JSON Structure
+              </Label>
+              <ScrollArea className="h-48 w-full rounded-md border bg-slate-950 p-4">
+                <pre className="text-xs text-blue-400 font-mono">
+                  {JSON.stringify(JSON_TEMPLATE, null, 2)}
+                </pre>
+              </ScrollArea>
+            </div>
+
+            <div className="border-2 border-dashed border-muted rounded-xl p-8 flex flex-col items-center justify-center gap-4 hover:border-primary/50 transition-colors bg-secondary/5">
+              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <CloudUpload className="h-6 w-6 text-primary" />
+              </div>
+              <div className="text-center">
+                <p className="font-bold">Select JSON File</p>
+                <p className="text-xs text-muted-foreground mt-1">Maximum file size: 2MB</p>
+              </div>
+              <Input 
+                type="file" 
+                accept=".json" 
+                className="max-w-[200px] cursor-pointer"
+                onChange={handleJsonUpload}
+              />
+              {uploadedJson && (
+                <div className="flex items-center gap-2 text-green-600 bg-green-50 px-3 py-1 rounded-full text-xs font-bold">
+                  <Info className="h-3 w-3" />
+                  File Ready: {uploadedJson.fname}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={handleBulkImport} 
+              disabled={!uploadedJson || isImporting}
+              className="gap-2 font-bold"
+            >
+              {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
+              {isImporting ? "Importing Records..." : "Start Import"}
             </Button>
           </DialogFooter>
         </DialogContent>
