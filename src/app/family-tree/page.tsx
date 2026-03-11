@@ -20,11 +20,12 @@ import "@xyflow/react/dist/style.css";
 
 import { TreeNode, Person } from "@/components/features/family-tree/tree-node";
 import { Button } from "@/components/ui/button";
-import { Plus, GitBranch, Share2, Info, Loader2 } from "lucide-react";
+import { Plus, GitBranch, Share2, Info, Loader2, Camera, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   Select, 
   SelectContent, 
@@ -35,6 +36,7 @@ import {
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, serverTimestamp, doc, addDoc } from "firebase/firestore";
 import { addDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { useToast } from "@/hooks/use-toast";
 
 const nodeTypes = {
   familyMember: TreeNode,
@@ -44,7 +46,10 @@ export default function FamilyTreePage() {
   const { t } = useTranslation();
   const firestore = useFirestore();
   const { user } = useUser();
+  const { toast } = useToast();
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  
   const [newPerson, setNewPerson] = useState<Partial<Person & { relatedToId?: string, relationType?: string }>>({ 
     name: "", 
     birthDate: "", 
@@ -52,7 +57,8 @@ export default function FamilyTreePage() {
     role: "Member",
     description: "",
     relatedToId: "",
-    relationType: "parent-child"
+    relationType: "parent-child",
+    photoUrl: ""
   });
 
   const householdId = user?.uid || "default";
@@ -79,7 +85,7 @@ export default function FamilyTreePage() {
         return {
           id: person.id,
           type: "familyMember",
-          position: { x: index * 250, y: index * 150 }, // Simple initial positioning
+          position: { x: index * 250, y: index * 150 },
           data: { person },
         };
       });
@@ -123,6 +129,28 @@ export default function FamilyTreePage() {
     [firestore, householdId, user]
   );
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 1024 * 1024) { // 1MB limit for Firestore doc
+        toast({
+          variant: "destructive",
+          title: "File too large",
+          description: "Please select an image smaller than 1MB.",
+        });
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setImagePreview(base64String);
+        setNewPerson(prev => ({ ...prev, photoUrl: base64String }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleAdd = async () => {
     if (!newPerson.name || !user) return;
 
@@ -133,14 +161,13 @@ export default function FamilyTreePage() {
       gender: newPerson.gender,
       role: newPerson.role,
       description: newPerson.description || "",
-      photoUrl: `https://picsum.photos/seed/${Date.now()}/200/200`,
+      photoUrl: newPerson.photoUrl || `https://picsum.photos/seed/${Date.now()}/200/200`,
       createdAt: serverTimestamp(),
       createdByUserId: user.uid,
       householdMembers: { [user.uid]: "admin" }
     };
 
     const personsRef = collection(firestore, "households", householdId, "persons");
-    // We need the ID for the relationship, so we use addDoc directly here or get ID from non-blocking
     const docRef = await addDoc(personsRef, personData);
 
     if (newPerson.relatedToId && newPerson.relationType) {
@@ -157,6 +184,7 @@ export default function FamilyTreePage() {
     }
 
     setIsAddOpen(false);
+    setImagePreview(null);
     setNewPerson({ 
       name: "", 
       birthDate: "", 
@@ -164,7 +192,8 @@ export default function FamilyTreePage() {
       role: "Member", 
       description: "", 
       relatedToId: "", 
-      relationType: "parent-child" 
+      relationType: "parent-child",
+      photoUrl: ""
     });
   };
 
@@ -237,11 +266,36 @@ export default function FamilyTreePage() {
       </div>
 
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("tree.addPerson")}</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-6 py-4">
+            <div className="flex flex-col items-center gap-4">
+              <div className="relative group">
+                <Avatar className="h-24 w-24 border-4 border-primary/20 group-hover:border-primary/50 transition-colors">
+                  <AvatarImage src={imagePreview || ""} />
+                  <AvatarFallback className="bg-secondary">
+                    <Camera className="h-8 w-8 text-muted-foreground" />
+                  </AvatarFallback>
+                </Avatar>
+                <Label 
+                  htmlFor="photo-upload" 
+                  className="absolute bottom-0 right-0 bg-primary text-primary-foreground p-1.5 rounded-full cursor-pointer shadow-lg hover:bg-primary/90 transition-colors"
+                >
+                  <Plus className="h-4 w-4" />
+                </Label>
+                <Input 
+                  id="photo-upload" 
+                  type="file" 
+                  accept="image/*" 
+                  className="hidden" 
+                  onChange={handleImageChange}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">Profile Picture (Max 1MB)</p>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="name">Name</Label>
