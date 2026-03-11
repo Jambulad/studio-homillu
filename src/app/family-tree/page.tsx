@@ -20,7 +20,7 @@ import "@xyflow/react/dist/style.css";
 
 import { TreeNode, Person } from "@/components/features/family-tree/tree-node";
 import { Button } from "@/components/ui/button";
-import { Plus, GitBranch, Share2, Info, Loader2, Camera, X } from "lucide-react";
+import { Plus, GitBranch, Share2, Info, Loader2, Camera, Database, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,12 +34,437 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, serverTimestamp, doc, addDoc } from "firebase/firestore";
+import { collection, serverTimestamp, doc, addDoc, writeBatch } from "firebase/firestore";
 import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { useToast } from "@/hooks/use-toast";
 
 const nodeTypes = {
   familyMember: TreeNode,
+};
+
+const LEGACY_DATA = {
+  "fname": "Changal Rayudu",
+  "DOB": "",
+  "spouse": "Wife: Eeramma",
+  "photo": "",
+  "children": [
+    {
+      "fname": "Govindu",
+      "DOB": "",
+      "spouse": "Wife: Sulochana",
+      "photo": "",
+      "children": [
+        {
+          "fname": "Ravinder",
+          "DOB": "",
+          "spouse": "Wife: Sulochana",
+          "photo": "",
+          "children": [
+            {
+              "fname": "Chandrakala",
+              "DOB": "",
+              "spouse": "Husband: Ashok Kumar",
+              "photo": "",
+              "children": [
+                {
+                  "fname": "Vasrha Yadav",
+                  "DOB": "",
+                  "spouse": "",
+                  "photo": ""
+                },
+                {
+                  "fname": "Daughter2",
+                  "DOB": "",
+                  "spouse": "",
+                  "photo": ""
+                },
+                {
+                  "fname": "Daughter3",
+                  "DOB": "",
+                  "spouse": "",
+                  "photo": ""
+                }
+              ]
+            },
+            {
+              "fname": "Ramana",
+              "DOB": "",
+              "spouse": "Wife: Geetha",
+              "photo": "",
+              "children": [
+                {
+                  "fname": "Rakesh",
+                  "DOB": "",
+                  "spouse": "",
+                  "photo": ""
+                },
+                {
+                  "fname": "Poojitha",
+                  "DOB": "",
+                  "spouse": "",
+                  "photo": ""
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fname": "Krishnappa",
+      "DOB": "",
+      "spouse": "Wife: ???",
+      "photo": ""
+    },
+    {
+      "fname": "Kuppamma",
+      "DOB": "",
+      "spouse": "Husband: Anjineyulu ",
+      "photo": "",
+      "children": [
+        {
+          "fname": "Kamala",
+          "DOB": "",
+          "spouse": "Husband: ???",
+          "photo": ""
+        },
+        {
+          "fname": "Aruna (Tamil Nadu)",
+          "DOB": "",
+          "spouse": "",
+          "photo": ""
+        },
+        {
+          "fname": "Sulochana (Balu Uncle valla Ammagaru)",
+          "DOB": "",
+          "spouse": "Husband: ???",
+          "photo": ""
+        },
+        {
+          "fname": "Indira (Late, Gtl)",
+          "DOB": "",
+          "spouse": "",
+          "photo": ""
+        },
+        {
+          "fname": "Jaya ()",
+          "DOB": "",
+          "spouse": "",
+          "photo": ""
+        },
+        {
+          "fname": "Satish (Gtl)",
+          "DOB": "",
+          "spouse": "Wife: Uma (daughter of Seenappa)",
+          "photo": "",
+          "children": [
+            {
+              "fname": "Sirisha",
+              "DOB": "",
+              "spouse": "Husband: Shiva",
+              "photo": "",
+              "children": [
+                {
+                  "fname": "Daughter",
+                  "DOB": "",
+                  "spouse": "",
+                  "photo": ""
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "fname": "Krishna Murthy ",
+          "DOB": "",
+          "spouse": "Wife:",
+          "photo": ""
+        }
+      ]
+    },
+    {
+      "fname": "Seenappa",
+      "DOB": "",
+      "spouse": "Wife: Papamma",
+      "photo": "",
+      "children": [
+        {
+          "fname": "Padma (Mumbai)",
+          "DOB": "",
+          "spouse": "Husband: Adhikeshavulu",
+          "photo": "",
+          "children": [
+            {
+              "fname": "Revathi",
+              "DOB": "",
+              "spouse": "",
+              "photo": ""
+            },
+            {
+              "fname": "Rajesh",
+              "DOB": "",
+              "spouse": "",
+              "photo": ""
+            },
+            {
+              "fname": "Bharathi",
+              "DOB": "",
+              "spouse": "",
+              "photo": ""
+            },
+            {
+              "fname": "Mallathi",
+              "DOB": "",
+              "spouse": "",
+              "photo": ""
+            }
+          ]
+        },
+        {
+          "fname": "Aruna (Ambathur, Tamil Nadu)",
+          "DOB": "",
+          "spouse": "Venu Gopalan",
+          "photo": "",
+          "children": [
+            {
+              "fname": "Vydehi",
+              "DOB": "",
+              "spouse": "",
+              "photo": ""
+            },
+            {
+              "fname": "Son(Lt)",
+              "DOB": "",
+              "spouse": "",
+              "photo": ""
+            }
+          ]
+        },
+        {
+          "fname": "Sathish (Bengaluru)",
+          "DOB": "",
+          "spouse": "Rani",
+          "photo": "",
+          "children": [
+            {
+              "fname": "Jayadev",
+              "DOB": "",
+              "spouse": "",
+              "photo": "",
+              "children": [
+                {
+                  "fname": "Son",
+                  "DOB": "",
+                  "spouse": "",
+                  "photo": ""
+                }
+              ]
+            },
+            {
+              "fname": "Poornima",
+              "DOB": "",
+              "spouse": "",
+              "photo": ""
+            },
+            {
+              "fname": "Manjunath",
+              "DOB": "",
+              "spouse": "",
+              "photo": "",
+              "children": [
+                {
+                  "fname": "Son",
+                  "DOB": "",
+                  "spouse": "",
+                  "photo": ""
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "fname": "Uma (Late, Gtl)",
+          "DOB": "",
+          "spouse": "",
+          "photo": ""
+        },
+        {
+          "fname": "Vasantha (Mumbai)",
+          "DOB": "",
+          "spouse": "",
+          "photo": ""
+        }
+      ]
+    },
+    {
+      "fname": "Chandraiah ",
+      "DOB": "1922",
+      "spouse": "Wife: Laxmamma (1928)",
+      "photo": "",
+      "children": [
+        {
+          "fname": "Sreerama Murthy ",
+          "DOB": "1956",
+          "spouse": "Wife: Padmavathamma (1963)",
+          "photo": "",
+          "children": [
+            {
+              "fname": "Dilip ",
+              "DOB": "1984",
+              "spouse": "Wife: Harshitha (1987)",
+              "photo": "",
+              "children": [
+                {
+                  "fname": "Vaishnavi ",
+                  "DOB": "26/06/2014",
+                  "spouse": "",
+                  "photo": ""
+                },
+                {
+                  "fname": "Dhruthi ",
+                  "DOB": "15/12/2018",
+                  "spouse": "",
+                  "photo": ""
+                }
+              ]
+            },
+            {
+              "fname": "Nikhil ",
+              "DOB": "1986",
+              "spouse": "Wife: Anahita (1992)",
+              "photo": "",
+              "children": [
+                {
+                  "fname": "Adhithi ",
+                  "DOB": "21/02/2018",
+                  "spouse": "",
+                  "photo": ""
+                },
+                {
+                  "fname": "Advaith ",
+                  "DOB": "05/02/2018",
+                  "spouse": "",
+                  "photo": ""
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "fname": "Asha Latha",
+          "DOB": "",
+          "spouse": "Husband: Manohar",
+          "photo": "",
+          "children": [
+            {
+              "fname": "Anisha Thella",
+              "DOB": "1987",
+              "spouse": "Husband: Ravi Jangiti",
+              "photo": "",
+              "children": [
+                {
+                  "fname": "Avi Thella",
+                  "DOB": "2015",
+                  "spouse": "",
+                  "photo": ""
+                },
+                {
+                  "fname": "Ashrav",
+                  "DOB": "2020",
+                  "spouse": "",
+                  "photo": ""
+                }
+              ]
+            },
+            {
+              "fname": "Manasa Thella",
+              "DOB": "1990",
+              "spouse": "Vivek",
+              "photo": "",
+              "children": [
+                {
+                  "fname": "Vicky",
+                  "DOB": "2020",
+                  "spouse": "",
+                  "photo": ""
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fname": "Purushotham",
+      "DOB": "",
+      "spouse": "Wife: ???",
+      "photo": "",
+      "children": [
+        {
+          "fname": "Raja (Tirupathi)",
+          "DOB": "",
+          "spouse": "Wife: ???",
+          "photo": ""
+        },
+        {
+          "fname": "Ranga ",
+          "DOB": "",
+          "spouse": "Wife: ???",
+          "photo": ""
+        },
+        {
+          "fname": "Loka (Bellary)",
+          "DOB": "",
+          "spouse": "Wife: ",
+          "photo": ""
+        },
+        {
+          "fname": "Sathya ",
+          "DOB": "",
+          "spouse": "Wife: ???",
+          "photo": ""
+        }
+      ]
+    },
+    {
+      "fname": "Adhikeshavulu",
+      "DOB": "",
+      "spouse": "Wife: Kamallamma",
+      "photo": "",
+      "children": [
+        {
+          "fname": "Usha (Hyd)",
+          "DOB": "",
+          "spouse": "Husband: ???",
+          "photo": ""
+        },
+        {
+          "fname": "Suvi (Hyd)",
+          "DOB": "",
+          "spouse": "Husband: Srinath",
+          "photo": ""
+        },
+        {
+          "fname": "Sridevi (Hyd)",
+          "DOB": "",
+          "spouse": "Husband: ",
+          "photo": ""
+        },
+        {
+          "fname": "Parvathi ",
+          "DOB": "",
+          "spouse": "Husband: ",
+          "photo": ""
+        }
+      ]
+    },
+    {
+      "fname": "Siblings of Eeramma ",
+      "DOB": "",
+      "spouse": "1.Viraswamy(His son is Anjenyulu who is Kuppamma's Husband), 2.Sriptahi, 3.One More Son",
+      "photo": ""
+    }
+  ]
 };
 
 export default function FamilyTreePage() {
@@ -49,6 +474,7 @@ export default function FamilyTreePage() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   
   const initialPersonState: Partial<Person & { relatedToId?: string, relationType?: string }> = { 
@@ -221,6 +647,98 @@ export default function FamilyTreePage() {
     resetForm();
   };
 
+  const handleBulkImport = async () => {
+    if (!user || !firestore) return;
+    setIsImporting(true);
+
+    const importNode = async (node: any, parentId?: string) => {
+      // Create primary person
+      const personData = {
+        householdId,
+        name: node.fname,
+        birthDate: node.DOB || "",
+        gender: "male", // default assumption for primary nodes based on JSON structure
+        role: "Family Member",
+        photoUrl: `https://picsum.photos/seed/${node.fname}/200/200`,
+        createdAt: serverTimestamp(),
+        createdByUserId: user.uid,
+        householdMembers: { [user.uid]: "admin" }
+      };
+
+      const personsRef = collection(firestore, "households", householdId, "persons");
+      const docRef = await addDoc(personsRef, personData);
+      const personId = docRef.id;
+
+      // Create relationship to parent
+      if (parentId) {
+        const relRef = collection(firestore, "households", householdId, "relationships");
+        await addDoc(relRef, {
+          householdId,
+          person1Id: parentId,
+          person2Id: personId,
+          type: "parent-child",
+          createdAt: serverTimestamp(),
+          createdByUserId: user.uid,
+          householdMembers: { [user.uid]: "admin" }
+        });
+      }
+
+      // Handle spouse
+      if (node.spouse && node.spouse.trim() !== "" && node.spouse !== "Wife:" && node.spouse !== "Husband:") {
+        const spouseLabel = node.spouse.includes("Wife:") ? "Wife" : (node.spouse.includes("Husband:") ? "Husband" : "Spouse");
+        const spouseName = node.spouse.replace(/Wife:|Husband:/g, '').trim();
+        
+        if (spouseName && spouseName !== "???") {
+          const spouseDoc = await addDoc(personsRef, {
+            householdId,
+            name: spouseName,
+            birthDate: "",
+            gender: spouseLabel === "Wife" ? "female" : "male",
+            role: spouseLabel,
+            photoUrl: `https://picsum.photos/seed/${spouseName}/200/200`,
+            createdAt: serverTimestamp(),
+            createdByUserId: user.uid,
+            householdMembers: { [user.uid]: "admin" }
+          });
+
+          await addDoc(collection(firestore, "households", householdId, "relationships"), {
+            householdId,
+            person1Id: personId,
+            person2Id: spouseDoc.id,
+            type: "spouse",
+            createdAt: serverTimestamp(),
+            createdByUserId: user.uid,
+            householdMembers: { [user.uid]: "admin" }
+          });
+        }
+      }
+
+      // Recursively handle children
+      if (node.children && Array.isArray(node.children)) {
+        for (const child of node.children) {
+          await importNode(child, personId);
+        }
+      }
+    };
+
+    try {
+      await importNode(LEGACY_DATA);
+      toast({
+        title: "Import Success",
+        description: "Legacy family data has been successfully imported.",
+      });
+    } catch (e) {
+      console.error(e);
+      toast({
+        variant: "destructive",
+        title: "Import Failed",
+        description: "There was an error importing your data.",
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const resetForm = () => {
     setIsEditMode(false);
     setImagePreview(null);
@@ -240,9 +758,14 @@ export default function FamilyTreePage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
-            <Share2 className="h-4 w-4" />
-            Share
+          <Button 
+            variant="outline" 
+            className="gap-2 border-primary/20 hover:bg-primary/5"
+            onClick={handleBulkImport}
+            disabled={isImporting}
+          >
+            {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
+            Import Legacy Data
           </Button>
           <Button className="gap-2 shadow-lg" onClick={() => { resetForm(); setIsDialogOpen(true); }}>
             <Plus className="h-4 w-4" />
@@ -252,11 +775,13 @@ export default function FamilyTreePage() {
       </div>
 
       <div className="flex-1 bg-secondary/10 rounded-2xl border-2 border-dashed border-muted overflow-hidden relative shadow-inner">
-        {isPersonsLoading ? (
+        {(isPersonsLoading || isImporting) ? (
           <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-20">
             <div className="flex flex-col items-center gap-4">
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <p className="text-sm font-medium animate-pulse">Mapping your legacy...</p>
+              <p className="text-sm font-medium animate-pulse">
+                {isImporting ? "Processing legacy data lineage..." : "Mapping your legacy..."}
+              </p>
             </div>
           </div>
         ) : (
