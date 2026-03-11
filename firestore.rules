@@ -43,12 +43,16 @@ service cloud.firestore {
 
     // Checks if the user is a member of a household based on the 'members' map in a document
     function isMemberInMap(membersMap) {
-      return isSignedIn() && membersMap[request.auth.uid] != null;
+      return isSignedIn() && (membersMap[request.auth.uid] != null || membersMap.admin == request.auth.uid);
     }
 
     // Checks membership of a household by reading the parent household document
     function checkHouseholdMembership(householdId) {
-      return isMemberInMap(get(/databases/$(database)/documents/households/$(householdId)).data.members);
+      // Allow if the user is accessing their own private household (ID == UID)
+      // OR if they are explicitly listed in the members map of a shared household
+      return (isSignedIn() && request.auth.uid == householdId) || 
+             (exists(/databases/$(database)/documents/households/$(householdId)) && 
+              isMemberInMap(get(/databases/$(database)/documents/households/$(householdId)).data.members));
     }
 
     // --- USER PROFILES ---
@@ -77,14 +81,14 @@ service cloud.firestore {
      * @principle Shared access via member-role mapping.
      */
     match /households/{householdId} {
-      allow get: if isMemberInMap(resource.data.members);
+      allow get: if (isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.members);
       allow list: if false; // Global listing of households is denied; users find IDs via their profile.
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      allow update: if resource != null && isMemberInMap(resource.data.members) && request.resource.data.ownerId == resource.data.ownerId;
-      allow delete: if resource != null && resource.data.ownerId == request.auth.uid;
+      allow update: if resource != null && ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.members)) && request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if (resource != null && resource.data.ownerId == request.auth.uid) || (isSignedIn() && request.auth.uid == householdId);
     }
 
-    // --- HOUSEHOLD SUBCOLLECTIONS (Tasks, Shopping, Calendar, People, Relationships) ---
+    // --- HOUSEHOLD SUBCOLLECTIONS (Tasks, Shopping, Calendar, People, Relationships, Moments) ---
 
     /**
      * @description Shared subcollections under a household. 
@@ -93,6 +97,7 @@ service cloud.firestore {
      * @path /households/{householdId}/calendarEvents/{eventId}
      * @path /households/{householdId}/persons/{personId}
      * @path /households/{householdId}/relationships/{relId}
+     * @path /households/{householdId}/moments/{momentId}
      * @allow A member of household 'H' listing tasks within household 'H'.
      * @deny User 'B' creating a task in household 'A' if they aren't a member.
      * @principle Relational integrity and shared access verified via parent document lookup.
@@ -101,19 +106,19 @@ service cloud.firestore {
       
       // Helper to ensure we only apply these rules to valid household subcollections
       function isHouseholdSubcollection() {
-        return collection in ['tasks', 'shoppingListItems', 'calendarEvents', 'persons', 'relationships'];
+        return collection in ['tasks', 'shoppingListItems', 'calendarEvents', 'persons', 'relationships', 'moments'];
       }
 
-      allow get: if isHouseholdSubcollection() && isMemberInMap(resource.data.householdMembers);
+      allow get: if isHouseholdSubcollection() && ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.householdMembers));
       
-      // List operations use the parent document lookup as 'resource' is unavailable
+      // List operations use the parent document lookup or UID comparison as 'resource' is unavailable
       allow list: if isHouseholdSubcollection() && checkHouseholdMembership(householdId);
       
       allow create: if isHouseholdSubcollection() && checkHouseholdMembership(householdId) && request.resource.data.householdId == householdId;
       
-      allow update: if isHouseholdSubcollection() && resource != null && isMemberInMap(resource.data.householdMembers) && request.resource.data.householdId == resource.data.householdId;
+      allow update: if isHouseholdSubcollection() && resource != null && ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.householdMembers)) && request.resource.data.householdId == resource.data.householdId;
       
-      allow delete: if isHouseholdSubcollection() && resource != null && isMemberInMap(resource.data.householdMembers);
+      allow delete: if isHouseholdSubcollection() && resource != null && ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.householdMembers));
     }
 
     // --- DEFAULT DENY ---
