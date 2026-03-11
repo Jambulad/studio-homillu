@@ -20,7 +20,7 @@ import "@xyflow/react/dist/style.css";
 
 import { TreeNode, Person } from "@/components/features/family-tree/tree-node";
 import { Button } from "@/components/ui/button";
-import { Plus, GitBranch, Share2, Info, Loader2, Camera, Database, Trash2, CloudUpload } from "lucide-react";
+import { Plus, GitBranch, Share2, Info, Loader2, Camera, Database, Trash2, CloudUpload, CheckCircle2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,7 +34,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, serverTimestamp, doc, addDoc, setDoc } from "firebase/firestore";
+import { collection, serverTimestamp, doc, addDoc, setDoc, writeBatch } from "firebase/firestore";
 import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { useToast } from "@/hooks/use-toast";
 
@@ -476,6 +476,7 @@ export default function FamilyTreePage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [importStep, setImportStep] = useState("");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   
   const initialPersonState: Partial<Person & { relatedToId?: string, relationType?: string }> = { 
@@ -532,7 +533,7 @@ export default function FamilyTreePage() {
         return {
           id: person.id,
           type: "familyMember",
-          position: { x: index * 250, y: index * 150 },
+          position: { x: index * 280, y: index * 180 },
           data: { 
             person,
             onEdit: handleEdit,
@@ -655,6 +656,7 @@ export default function FamilyTreePage() {
     }
     
     setIsImporting(true);
+    setImportStep("Initializing Household...");
 
     try {
       // Ensure the root household document exists for the user
@@ -668,6 +670,8 @@ export default function FamilyTreePage() {
       }, { merge: true });
 
       const importNode = async (node: any, parentId?: string) => {
+        setImportStep(`Importing ${node.fname}...`);
+        
         // Create primary person
         const personData = {
           householdId: user.uid,
@@ -751,6 +755,7 @@ export default function FamilyTreePage() {
       });
     } finally {
       setIsImporting(false);
+      setImportStep("");
     }
   };
 
@@ -780,7 +785,7 @@ export default function FamilyTreePage() {
             disabled={isImporting || !user}
           >
             {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}
-            {isImporting ? "Publishing..." : "Publish Legacy Tree"}
+            {isImporting ? "Syncing..." : "Publish Legacy Tree"}
           </Button>
           <Button className="gap-2 shadow-lg" onClick={() => { resetForm(); setIsDialogOpen(true); }}>
             <Plus className="h-4 w-4" />
@@ -792,14 +797,14 @@ export default function FamilyTreePage() {
       <div className="flex-1 bg-secondary/10 rounded-2xl border-2 border-dashed border-muted overflow-hidden relative shadow-inner">
         {(isPersonsLoading || isImporting) ? (
           <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-20 backdrop-blur-sm">
-            <div className="flex flex-col items-center gap-4 bg-card p-8 rounded-2xl shadow-2xl border border-primary/20">
+            <div className="flex flex-col items-center gap-4 bg-card p-8 rounded-2xl shadow-2xl border border-primary/20 max-w-sm w-full mx-4">
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
               <div className="text-center">
                 <p className="text-lg font-bold">
                   {isImporting ? "Synchronizing Records..." : "Connecting to Database..."}
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  {isImporting ? "Building lineage relationships from legacy data" : "Mapping your family's heritage"}
+                <p className="text-sm text-muted-foreground mt-1">
+                  {importStep || (isImporting ? "Building lineage relationships" : "Mapping your family's heritage")}
                 </p>
               </div>
             </div>
@@ -833,7 +838,7 @@ export default function FamilyTreePage() {
               </div>
               <div className="flex items-center gap-2 ml-4 text-xs text-muted-foreground italic border-l pl-4">
                 <Info className="h-3.5 w-3.5" />
-                Drag nodes to reorganize tree structure
+                Drag nodes to reorganize
               </div>
             </Panel>
           </ReactFlow>

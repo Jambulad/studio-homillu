@@ -14,7 +14,8 @@ import {
   Moon,
   Database,
   ShieldCheck,
-  Globe
+  Globe,
+  RefreshCw
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
@@ -109,16 +110,16 @@ export default function DashboardPage() {
           </p>
         </div>
         {user && (
-          <Card className="bg-primary/5 border-primary/20 shadow-sm">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
+          <Card className="bg-primary/5 border-primary/20 shadow-sm overflow-hidden">
+            <CardContent className="p-4 flex items-center gap-4 relative">
+              <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center animate-pulse">
                 <ShieldCheck className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">System Status</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Cloud Sync Status</p>
                 <div className="flex items-center gap-2 mt-0.5">
                   <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-200">
-                    <Globe className="h-3 w-3 mr-1" /> Live
+                    <RefreshCw className="h-3 w-3 mr-1 animate-spin-slow" /> Active
                   </Badge>
                   <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-200">
                     <Database className="h-3 w-3 mr-1" /> Synced
