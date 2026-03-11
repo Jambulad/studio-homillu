@@ -24,8 +24,16 @@ import { Plus, GitBranch, Share2, Info, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, serverTimestamp, doc } from "firebase/firestore";
+import { collection, serverTimestamp, doc, addDoc } from "firebase/firestore";
 import { addDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
 const nodeTypes = {
@@ -37,7 +45,15 @@ export default function FamilyTreePage() {
   const firestore = useFirestore();
   const { user } = useUser();
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [newPerson, setNewPerson] = useState<Partial<Person>>({ name: "", birthDate: "" });
+  const [newPerson, setNewPerson] = useState<Partial<Person & { relatedToId?: string, relationType?: string }>>({ 
+    name: "", 
+    birthDate: "", 
+    gender: "male",
+    role: "Member",
+    description: "",
+    relatedToId: "",
+    relationType: "parent-child"
+  });
 
   const householdId = user?.uid || "default";
 
@@ -63,7 +79,7 @@ export default function FamilyTreePage() {
         return {
           id: person.id,
           type: "familyMember",
-          position: { x: index * 200, y: index * 100 }, // Simple initial positioning
+          position: { x: index * 250, y: index * 150 }, // Simple initial positioning
           data: { person },
         };
       });
@@ -80,7 +96,10 @@ export default function FamilyTreePage() {
           target: rel.person2Id,
           animated: rel.type === "parent-child",
           label: rel.type,
-          style: { stroke: rel.type === "spouse" ? 'hsl(var(--accent))' : 'hsl(var(--primary))', strokeWidth: 2 },
+          style: { 
+            stroke: rel.type === "spouse" ? 'hsl(var(--accent))' : 'hsl(var(--primary))', 
+            strokeWidth: 3 
+          },
         };
       });
       setEdges(newEdges);
@@ -104,13 +123,16 @@ export default function FamilyTreePage() {
     [firestore, householdId, user]
   );
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!newPerson.name || !user) return;
 
     const personData = {
       householdId,
       name: newPerson.name,
       birthDate: newPerson.birthDate || "",
+      gender: newPerson.gender,
+      role: newPerson.role,
+      description: newPerson.description || "",
       photoUrl: `https://picsum.photos/seed/${Date.now()}/200/200`,
       createdAt: serverTimestamp(),
       createdByUserId: user.uid,
@@ -118,9 +140,32 @@ export default function FamilyTreePage() {
     };
 
     const personsRef = collection(firestore, "households", householdId, "persons");
-    addDocumentNonBlocking(personsRef, personData);
+    // We need the ID for the relationship, so we use addDoc directly here or get ID from non-blocking
+    const docRef = await addDoc(personsRef, personData);
+
+    if (newPerson.relatedToId && newPerson.relationType) {
+      const relRef = collection(firestore, "households", householdId, "relationships");
+      addDocumentNonBlocking(relRef, {
+        householdId,
+        person1Id: newPerson.relationType === "parent-child" ? newPerson.relatedToId : docRef.id,
+        person2Id: newPerson.relationType === "parent-child" ? docRef.id : newPerson.relatedToId,
+        type: newPerson.relationType,
+        createdAt: serverTimestamp(),
+        createdByUserId: user.uid,
+        householdMembers: { [user.uid]: "admin" }
+      });
+    }
+
     setIsAddOpen(false);
-    setNewPerson({ name: "", birthDate: "" });
+    setNewPerson({ 
+      name: "", 
+      birthDate: "", 
+      gender: "male", 
+      role: "Member", 
+      description: "", 
+      relatedToId: "", 
+      relationType: "parent-child" 
+    });
   };
 
   return (
@@ -150,7 +195,10 @@ export default function FamilyTreePage() {
       <div className="flex-1 bg-secondary/10 rounded-2xl border-2 border-dashed border-muted overflow-hidden relative shadow-inner">
         {isPersonsLoading ? (
           <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-20">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <div className="flex flex-col items-center gap-4">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+              <p className="text-sm font-medium animate-pulse">Mapping your legacy...</p>
+            </div>
           </div>
         ) : (
           <ReactFlow
@@ -189,32 +237,101 @@ export default function FamilyTreePage() {
       </div>
 
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{t("tree.addPerson")}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="name">Name</Label>
+                <Input 
+                  id="name" 
+                  value={newPerson.name} 
+                  onChange={(e) => setNewPerson({...newPerson, name: e.target.value})} 
+                  placeholder="Full Name" 
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="birth">Birth Date</Label>
+                <Input 
+                  id="birth" 
+                  value={newPerson.birthDate} 
+                  onChange={(e) => setNewPerson({...newPerson, birthDate: e.target.value})} 
+                  placeholder="DD-MM-YYYY" 
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>Gender</Label>
+                <Select value={newPerson.gender} onValueChange={(val) => setNewPerson({...newPerson, gender: val})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Gender" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>Role</Label>
+                <Input 
+                  value={newPerson.role} 
+                  onChange={(e) => setNewPerson({...newPerson, role: e.target.value})} 
+                  placeholder="e.g. Grandfather, Son" 
+                />
+              </div>
+            </div>
+
             <div className="grid gap-2">
-              <Label htmlFor="name">Name</Label>
-              <Input 
-                id="name" 
-                value={newPerson.name} 
-                onChange={(e) => setNewPerson({...newPerson, name: e.target.value})} 
-                placeholder="Full Name" 
+              <Label>Description</Label>
+              <Textarea 
+                value={newPerson.description} 
+                onChange={(e) => setNewPerson({...newPerson, description: e.target.value})} 
+                placeholder="A short note about this person..."
+                className="h-20"
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="birth">Birth Date</Label>
-              <Input 
-                id="birth" 
-                value={newPerson.birthDate} 
-                onChange={(e) => setNewPerson({...newPerson, birthDate: e.target.value})} 
-                placeholder="DD-MM-YYYY" 
-              />
-            </div>
+
+            {persons && persons.length > 0 && (
+              <div className="border-t pt-4 space-y-4">
+                <p className="text-sm font-bold text-primary">Relationship Mapping</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label>Related To</Label>
+                    <Select value={newPerson.relatedToId} onValueChange={(val) => setNewPerson({...newPerson, relatedToId: val})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select relative" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {persons.map((p: any) => (
+                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Relation</Label>
+                    <Select value={newPerson.relationType} onValueChange={(val) => setNewPerson({...newPerson, relationType: val})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Relation Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="parent-child">Child of</SelectItem>
+                        <SelectItem value="spouse">Spouse of</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <Button onClick={handleAdd}>{t("common.add")}</Button>
+            <Button onClick={handleAdd} className="w-full sm:w-auto">{t("common.add")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
