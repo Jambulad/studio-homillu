@@ -34,7 +34,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, serverTimestamp, doc, addDoc } from "firebase/firestore";
+import { collection, serverTimestamp, doc, addDoc, setDoc } from "firebase/firestore";
 import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { useToast } from "@/hooks/use-toast";
 
@@ -476,7 +476,6 @@ export default function FamilyTreePage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-  const [importProgress, setImportProgress] = useState(0);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   
   const initialPersonState: Partial<Person & { relatedToId?: string, relationType?: string }> = { 
@@ -651,95 +650,104 @@ export default function FamilyTreePage() {
 
   const handleBulkImport = async () => {
     if (!user || !firestore) {
-      toast({ variant: "destructive", title: "Authentication Required", description: "Please sign in to import data." });
+      toast({ variant: "destructive", title: "Authentication Required", description: "Please sign in to publish your tree data." });
       return;
     }
     
     setIsImporting(true);
-    setImportProgress(0);
 
-    const importNode = async (node: any, parentId?: string) => {
-      // Create primary person
-      const personData = {
-        householdId,
-        name: node.fname,
-        birthDate: node.DOB || "",
-        gender: "male", 
-        role: "Family Member",
-        photoUrl: `https://picsum.photos/seed/${node.fname}/200/200`,
+    try {
+      // Ensure the root household document exists for the user
+      const householdRef = doc(firestore, "households", user.uid);
+      await setDoc(householdRef, {
+        id: user.uid,
+        name: `${user.displayName}'s Family`,
+        ownerId: user.uid,
         createdAt: serverTimestamp(),
-        createdByUserId: user.uid,
-        householdMembers: { [user.uid]: "admin" }
-      };
+        members: { [user.uid]: "admin" }
+      }, { merge: true });
 
-      const personsRef = collection(firestore, "households", householdId, "persons");
-      const docRef = await addDoc(personsRef, personData);
-      const personId = docRef.id;
-
-      // Create relationship to parent
-      if (parentId) {
-        const relRef = collection(firestore, "households", householdId, "relationships");
-        await addDoc(relRef, {
-          householdId,
-          person1Id: parentId,
-          person2Id: personId,
-          type: "parent-child",
+      const importNode = async (node: any, parentId?: string) => {
+        // Create primary person
+        const personData = {
+          householdId: user.uid,
+          name: node.fname,
+          birthDate: node.DOB || "",
+          gender: "male", 
+          role: "Family Member",
+          photoUrl: `https://picsum.photos/seed/${node.fname}/200/200`,
           createdAt: serverTimestamp(),
           createdByUserId: user.uid,
           householdMembers: { [user.uid]: "admin" }
-        });
-      }
+        };
 
-      // Handle spouse
-      if (node.spouse && node.spouse.trim() !== "" && !node.spouse.endsWith(":")) {
-        const spouseLabel = node.spouse.toLowerCase().includes("wife") ? "Wife" : (node.spouse.toLowerCase().includes("husband") ? "Husband" : "Spouse");
-        const spouseName = node.spouse.replace(/Wife:|Husband:/gi, '').trim();
-        
-        if (spouseName && spouseName !== "???" && spouseName !== "") {
-          const spouseDoc = await addDoc(personsRef, {
-            householdId,
-            name: spouseName,
-            birthDate: "",
-            gender: spouseLabel === "Wife" ? "female" : "male",
-            role: spouseLabel,
-            photoUrl: `https://picsum.photos/seed/${spouseName}/200/200`,
-            createdAt: serverTimestamp(),
-            createdByUserId: user.uid,
-            householdMembers: { [user.uid]: "admin" }
-          });
+        const personsRef = collection(firestore, "households", user.uid, "persons");
+        const docRef = await addDoc(personsRef, personData);
+        const personId = docRef.id;
 
-          await addDoc(collection(firestore, "households", householdId, "relationships"), {
-            householdId,
-            person1Id: personId,
-            person2Id: spouseDoc.id,
-            type: "spouse",
+        // Create relationship to parent
+        if (parentId) {
+          const relRef = collection(firestore, "households", user.uid, "relationships");
+          await addDoc(relRef, {
+            householdId: user.uid,
+            person1Id: parentId,
+            person2Id: personId,
+            type: "parent-child",
             createdAt: serverTimestamp(),
             createdByUserId: user.uid,
             householdMembers: { [user.uid]: "admin" }
           });
         }
-      }
 
-      // Recursively handle children
-      if (node.children && Array.isArray(node.children)) {
-        for (const child of node.children) {
-          await importNode(child, personId);
+        // Handle spouse
+        if (node.spouse && node.spouse.trim() !== "" && !node.spouse.endsWith(":")) {
+          const spouseLabel = node.spouse.toLowerCase().includes("wife") ? "Wife" : (node.spouse.toLowerCase().includes("husband") ? "Husband" : "Spouse");
+          const spouseName = node.spouse.replace(/Wife:|Husband:/gi, '').trim();
+          
+          if (spouseName && spouseName !== "???" && spouseName !== "") {
+            const spouseDoc = await addDoc(personsRef, {
+              householdId: user.uid,
+              name: spouseName,
+              birthDate: "",
+              gender: spouseLabel === "Wife" ? "female" : "male",
+              role: spouseLabel,
+              photoUrl: `https://picsum.photos/seed/${spouseName}/200/200`,
+              createdAt: serverTimestamp(),
+              createdByUserId: user.uid,
+              householdMembers: { [user.uid]: "admin" }
+            });
+
+            await addDoc(collection(firestore, "households", user.uid, "relationships"), {
+              householdId: user.uid,
+              person1Id: personId,
+              person2Id: spouseDoc.id,
+              type: "spouse",
+              createdAt: serverTimestamp(),
+              createdByUserId: user.uid,
+              householdMembers: { [user.uid]: "admin" }
+            });
+          }
         }
-      }
-    };
 
-    try {
+        // Recursively handle children
+        if (node.children && Array.isArray(node.children)) {
+          for (const child of node.children) {
+            await importNode(child, personId);
+          }
+        }
+      };
+
       await importNode(LEGACY_DATA);
       toast({
-        title: "Import Complete",
-        description: "Your family lineage has been successfully synchronized and published.",
+        title: "Tree Published!",
+        description: "Your lineage has been successfully synchronized and published to the cloud.",
       });
     } catch (e: any) {
-      console.error(e);
+      console.error("Bulk Import Error:", e);
       toast({
         variant: "destructive",
-        title: "Publish Failed",
-        description: e.message || "There was an error publishing your tree to the database.",
+        title: "Sync Failed",
+        description: e.message || "There was an error publishing your records. Please check your connection.",
       });
     } finally {
       setIsImporting(false);
@@ -769,7 +777,7 @@ export default function FamilyTreePage() {
             variant="outline" 
             className="gap-2 border-primary/20 hover:bg-primary/5 shadow-sm"
             onClick={handleBulkImport}
-            disabled={isImporting}
+            disabled={isImporting || !user}
           >
             {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}
             {isImporting ? "Publishing..." : "Publish Legacy Tree"}

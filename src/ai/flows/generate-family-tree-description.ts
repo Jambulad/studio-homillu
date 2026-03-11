@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview An AI agent that generates descriptive texts for family member profiles or relationship summaries.
@@ -42,7 +43,24 @@ const prompt = ai.definePrompt({
   name: 'generateFamilyTreeDescriptionPrompt',
   input: {schema: FamilyTreeDescriptionInputSchema},
   output: {schema: FamilyTreeDescriptionOutputSchema},
-  prompt: `You are an AI assistant specialized in generating engaging and informative descriptive texts for family tree profiles.\nGenerate a concise and heartwarming description based on the provided details.\n\n{{#if (eq type 'person')}}\n  Generate a profile description for a person.\n\n  Name: {{{personName}}}\n  {{#if birthDate}}Birth Date: {{{birthDate}}}{{/if}}\n  {{#if deathDate}}Death Date: {{{deathDate}}}{{/if}}\n  {{#if photoDataUri}}Photo: {{media url=photoDataUri}}{{/if}}\n  {{#if keyEvents}}Key Life Events:\n  {{#each keyEvents}}- {{{this}}}\n  {{/each}}{{/if}}\n  {{#if additionalDetails}}Additional Details: {{{additionalDetails}}}{{/if}}\n\n{{else if (eq type 'relationship')}}\n  Generate a description for a relationship between two people.\n\n  People: {{{person1Name}}} and {{{person2Name}}}\n  Relationship Type: {{{relationshipType}}}\n  {{#if relationshipStartDate}}Start Date: {{{relationshipStartDate}}}{{/if}}\n  {{#if relationshipEndDate}}End Date: {{{relationshipEndDate}}}{{/if}}\n  {{#if keyEvents}}Key Relationship Milestones:\n  {{#each keyEvents}}- {{{this}}}\n  {{/each}}{{/if}}\n  {{#if additionalDetails}}Additional Details: {{{additionalDetails}}}{{/if}}\n{{/if}}\n\nEnsure the description is warm, respectful, and highlights significant aspects, suitable for a family tree.\n`
+  prompt: `You are an AI assistant specialized in generating engaging and informative descriptive texts for family tree profiles.
+Generate a concise and heartwarming description based on the provided details.
+
+Entity Type: {{{type}}}
+
+Details Provided:
+- Name/Names: {{{personName}}} {{{person1Name}}} {{{person2Name}}}
+- Event Dates: {{{birthDate}}} {{{deathDate}}} {{{relationshipStartDate}}} {{{relationshipEndDate}}}
+- Type/Relationship: {{{relationshipType}}}
+- Milestones: 
+{{#each keyEvents}}- {{{this}}}
+{{/each}}
+- Additional Context: {{{additionalDetails}}}
+
+Instructions:
+1. If the entity is a "person", write a warm personal biography.
+2. If the entity is a "relationship", write a summary of their shared journey.
+3. Keep it respectful and suitable for a family heritage record.`
 });
 
 const generateFamilyTreeDescriptionFlow = ai.defineFlow(
