@@ -9,57 +9,73 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar as CalendarIcon, Download, Plus, Clock, MapPin } from "lucide-react";
+import { Calendar as CalendarIcon, Download, Plus, Clock, MapPin, Loader2, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
-interface CalendarEvent {
-  id: string;
-  title: string;
-  date: Date;
-  location?: string;
-  description?: string;
-}
-
-const initialEvents: CalendarEvent[] = [
-  { id: "1", title: "Family Lunch", date: new Date(new Date().setHours(13, 0, 0, 0)), location: "Grandma's House", description: "Monthly reunion" },
-  { id: "2", title: "Grocery Shopping", date: new Date(new Date().setDate(new Date().getDate() + 1)), location: "Big Bazaar" },
-  { id: "3", title: "Doctor Appointment", date: new Date(new Date().setDate(new Date().getDate() + 2)), description: "Regular health checkup" },
-];
+import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
+import { collection, serverTimestamp, doc } from "firebase/firestore";
+import { addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
 export default function CalendarPage() {
   const { t } = useTranslation();
+  const firestore = useFirestore();
+  const { user } = useUser();
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [events, setEvents] = useState<CalendarEvent[]>(initialEvents);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newEvent, setNewEvent] = useState({ title: "", location: "", description: "" });
 
+  const householdId = user?.uid || "default";
+
+  const eventsQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, "households", householdId, "calendarEvents");
+  }, [firestore, user, householdId]);
+
+  const { data: events, isLoading } = useCollection(eventsQuery);
+
   const selectedDayEvents = useMemo(() => {
-    if (!date) return [];
-    return events.filter(event => isSameDay(event.date, date));
+    if (!date || !events) return [];
+    return events.filter((event: any) => {
+      const eventDate = event.startDateTime?.toDate ? event.startDateTime.toDate() : new Date(event.startDateTime);
+      return isSameDay(eventDate, date);
+    });
   }, [date, events]);
 
   const handleAddEvent = () => {
-    if (newEvent.title && date) {
-      const event: CalendarEvent = {
-        id: Math.random().toString(36).substr(2, 9),
-        title: newEvent.title,
-        location: newEvent.location,
-        description: newEvent.description,
-        date: date,
-      };
-      setEvents([...events, event]);
-      setNewEvent({ title: "", location: "", description: "" });
-      setIsAddOpen(false);
-    }
+    if (!newEvent.title || !date || !user) return;
+
+    const eventData = {
+      householdId,
+      title: newEvent.title,
+      description: newEvent.description,
+      location: newEvent.location,
+      startDateTime: date,
+      isAllDay: false,
+      createdAt: serverTimestamp(),
+      createdByUserId: user.uid,
+      householdMembers: { [user.uid]: "admin" }
+    };
+
+    const eventsRef = collection(firestore, "households", householdId, "calendarEvents");
+    addDocumentNonBlocking(eventsRef, eventData);
+    setNewEvent({ title: "", location: "", description: "" });
+    setIsAddOpen(false);
+  };
+
+  const deleteEvent = (eventId: string) => {
+    if (!firestore) return;
+    const eventRef = doc(firestore, "households", householdId, "calendarEvents", eventId);
+    deleteDocumentNonBlocking(eventRef);
   };
 
   const exportToICS = () => {
+    if (!events) return;
     let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//HomIllu//Family Calendar//EN\nCALSCALE:GREGORIAN\nMETHOD:PUBLISH\n";
     
-    events.forEach(event => {
-      const dtStart = format(event.date, "yyyyMMdd'T'HHmmss'Z'");
-      const dtEnd = format(addHours(event.date, 1), "yyyyMMdd'T'HHmmss'Z'");
+    events.forEach((event: any) => {
+      const eventDate = event.startDateTime?.toDate ? event.startDateTime.toDate() : new Date(event.startDateTime);
+      const dtStart = format(eventDate, "yyyyMMdd'T'HHmmss'Z'");
+      const dtEnd = format(addHours(eventDate, 1), "yyyyMMdd'T'HHmmss'Z'");
       const dtStamp = format(new Date(), "yyyyMMdd'T'HHmmss'Z'");
 
       icsContent += "BEGIN:VEVENT\n";
@@ -144,7 +160,6 @@ export default function CalendarPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddOpen(false)}>{t("common.cancel")}</Button>
                 <Button onClick={handleAddEvent}>{t("common.add")}</Button>
               </DialogFooter>
             </DialogContent>
@@ -175,49 +190,66 @@ export default function CalendarPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[400px] pr-4">
-              {selectedDayEvents.length > 0 ? (
-                <div className="space-y-4">
-                  {selectedDayEvents.map((event) => (
-                    <div 
-                      key={event.id} 
-                      className="p-4 rounded-xl border bg-card hover:border-primary/50 transition-all group relative overflow-hidden"
-                    >
-                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/20 group-hover:bg-primary transition-colors" />
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-bold text-lg group-hover:text-primary transition-colors">{event.title}</h4>
-                          <div className="flex flex-col gap-1 mt-1 text-sm text-muted-foreground">
-                            <span className="flex items-center gap-1.5">
-                              <Clock className="h-3.5 w-3.5" />
-                              {format(event.date, "p")}
-                            </span>
-                            {event.location && (
-                              <span className="flex items-center gap-1.5">
-                                <MapPin className="h-3.5 w-3.5" />
-                                {event.location}
-                              </span>
-                            )}
+            {isLoading ? (
+              <div className="flex justify-center p-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <ScrollArea className="h-[400px] pr-4">
+                {selectedDayEvents.length > 0 ? (
+                  <div className="space-y-4">
+                    {selectedDayEvents.map((event: any) => {
+                      const eventDate = event.startDateTime?.toDate ? event.startDateTime.toDate() : new Date(event.startDateTime);
+                      return (
+                        <div 
+                          key={event.id} 
+                          className="p-4 rounded-xl border bg-card hover:border-primary/50 transition-all group relative overflow-hidden"
+                        >
+                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/20 group-hover:bg-primary transition-colors" />
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h4 className="font-bold text-lg group-hover:text-primary transition-colors">{event.title}</h4>
+                              <div className="flex flex-col gap-1 mt-1 text-sm text-muted-foreground">
+                                <span className="flex items-center gap-1.5">
+                                  <Clock className="h-3.5 w-3.5" />
+                                  {format(eventDate, "p")}
+                                </span>
+                                {event.location && (
+                                  <span className="flex items-center gap-1.5">
+                                    <MapPin className="h-3.5 w-3.5" />
+                                    {event.location}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => deleteEvent(event.id)}
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
+                          {event.description && (
+                            <p className="mt-3 text-sm text-muted-foreground border-t pt-2 border-dashed">
+                              {event.description}
+                            </p>
+                          )}
                         </div>
-                      </div>
-                      {event.description && (
-                        <p className="mt-3 text-sm text-muted-foreground border-t pt-2 border-dashed">
-                          {event.description}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center text-center p-8 text-muted-foreground space-y-4">
-                  <div className="h-16 w-16 rounded-full bg-secondary flex items-center justify-center">
-                    <CalendarIcon className="h-8 w-8 opacity-20" />
+                      )
+                    })}
                   </div>
-                  <p>{t("calendar.noEvents")}</p>
-                </div>
-              )}
-            </ScrollArea>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-center p-8 text-muted-foreground space-y-4">
+                    <div className="h-16 w-16 rounded-full bg-secondary flex items-center justify-center">
+                      <CalendarIcon className="h-8 w-8 opacity-20" />
+                    </div>
+                    <p>{t("calendar.noEvents")}</p>
+                  </div>
+                )}
+              </ScrollArea>
+            )}
           </CardContent>
         </Card>
       </div>

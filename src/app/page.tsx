@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useTranslation } from "react-i18next";
@@ -8,32 +9,89 @@ import {
   Calendar, 
   GitBranch, 
   Clock, 
-  Zap,
   ChevronRight,
   TrendingUp,
-  Moon
+  Moon,
+  Loader2
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { getMoonPhase } from "@/lib/lunar-utils";
 import { useState, useEffect } from "react";
+import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
+import { collection } from "firebase/firestore";
 
 export default function DashboardPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const firestore = useFirestore();
   const [moonData, setMoonData] = useState<ReturnType<typeof getMoonPhase> | null>(null);
 
   useEffect(() => {
     setMoonData(getMoonPhase());
   }, []);
 
+  const householdId = user?.uid || "default";
+
+  const tasksQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, "households", householdId, "tasks");
+  }, [firestore, user, householdId]);
+
+  const shoppingQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, "households", householdId, "shoppingListItems");
+  }, [firestore, user, householdId]);
+
+  const { data: tasks, isLoading: tasksLoading } = useCollection(tasksQuery);
+  const { data: shopping, isLoading: shoppingLoading } = useCollection(shoppingQuery);
+
+  const pendingTasks = tasks?.filter((t: any) => !t.isCompleted).length || 0;
+  const shoppingItems = shopping?.length || 0;
+
   const widgets = [
-    { title: t("nav.tasks"), description: "4 tasks pending for today", icon: CheckSquare, color: "text-primary", href: "/tasks" },
-    { title: t("nav.shopping"), description: "7 items on list", icon: ShoppingBag, color: "text-accent", href: "/shopping" },
-    { title: t("nav.calendar"), description: "Family lunch at 1 PM", icon: Calendar, color: "text-orange-500", href: "/calendar" },
-    { title: t("nav.tree"), description: "5 generations explored", icon: GitBranch, color: "text-teal-600", href: "/family-tree" },
-    { title: t("nav.moments"), description: "2 days to Anniversary", icon: Clock, color: "text-pink-500", href: "/moments" },
-    { title: t("nav.lunar"), description: moonData ? `${moonData.emoji} ${moonData.name}` : "Loading phase...", icon: Moon, color: "text-indigo-500", href: "/lunar" },
+    { 
+      title: t("nav.tasks"), 
+      description: tasksLoading ? "..." : `${pendingTasks} tasks pending`, 
+      icon: CheckSquare, 
+      color: "text-primary", 
+      href: "/tasks" 
+    },
+    { 
+      title: t("nav.shopping"), 
+      description: shoppingLoading ? "..." : `${shoppingItems} items on list`, 
+      icon: ShoppingBag, 
+      color: "text-accent", 
+      href: "/shopping" 
+    },
+    { 
+      title: t("nav.calendar"), 
+      description: "Family schedule", 
+      icon: Calendar, 
+      color: "text-orange-500", 
+      href: "/calendar" 
+    },
+    { 
+      title: t("nav.tree"), 
+      description: "Generations explored", 
+      icon: GitBranch, 
+      color: "text-teal-600", 
+      href: "/family-tree" 
+    },
+    { 
+      title: t("nav.moments"), 
+      description: "Milestones", 
+      icon: Clock, 
+      color: "text-pink-500", 
+      href: "/moments" 
+    },
+    { 
+      title: t("nav.lunar"), 
+      description: moonData ? `${moonData.emoji} ${moonData.name}` : "Loading...", 
+      icon: Moon, 
+      color: "text-indigo-500", 
+      href: "/lunar" 
+    },
   ];
 
   return (
@@ -76,25 +134,21 @@ export default function DashboardPage() {
               <TrendingUp className="h-5 w-5 text-accent" />
               Family Insights
             </CardTitle>
-            <CardDescription>How you're doing this week</CardDescription>
+            <CardDescription>Real-time activity stats</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span>Task Completion Rate</span>
-                <span className="font-bold">85%</span>
+                <span>Task Completion</span>
+                <span className="font-bold">
+                  {tasks?.length ? Math.round(((tasks.length - pendingTasks) / tasks.length) * 100) : 0}%
+                </span>
               </div>
               <div className="h-2 w-full rounded-full bg-secondary">
-                <div className="h-2 w-[85%] rounded-full bg-accent" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span>Monthly Budget Utilization</span>
-                <span className="font-bold">62%</span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-secondary">
-                <div className="h-2 w-[62%] rounded-full bg-primary" />
+                <div 
+                  className="h-2 rounded-full bg-accent transition-all duration-500" 
+                  style={{ width: `${tasks?.length ? ((tasks.length - pendingTasks) / tasks.length) * 100 : 0}%` }} 
+                />
               </div>
             </div>
           </CardContent>
