@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/select";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, serverTimestamp, doc, addDoc } from "firebase/firestore";
-import { addDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { useToast } from "@/hooks/use-toast";
 
 const nodeTypes = {
@@ -47,10 +47,11 @@ export default function FamilyTreePage() {
   const firestore = useFirestore();
   const { user } = useUser();
   const { toast } = useToast();
-  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   
-  const [newPerson, setNewPerson] = useState<Partial<Person & { relatedToId?: string, relationType?: string }>>({ 
+  const initialPersonState: Partial<Person & { relatedToId?: string, relationType?: string }> = { 
     name: "", 
     birthDate: "", 
     gender: "male",
@@ -59,7 +60,9 @@ export default function FamilyTreePage() {
     relatedToId: "",
     relationType: "parent-child",
     photoUrl: ""
-  });
+  };
+
+  const [personForm, setPersonForm] = useState<Partial<Person & { relatedToId?: string, relationType?: string }>>(initialPersonState);
 
   const householdId = user?.uid || "default";
 
@@ -79,6 +82,23 @@ export default function FamilyTreePage() {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
+  const handleEdit = useCallback((person: Person) => {
+    setPersonForm(person);
+    setImagePreview(person.photoUrl || null);
+    setIsEditMode(true);
+    setIsDialogOpen(true);
+  }, []);
+
+  const handleDelete = useCallback((personId: string) => {
+    if (!firestore || !user) return;
+    const personRef = doc(firestore, "households", householdId, "persons", personId);
+    deleteDocumentNonBlocking(personRef);
+    toast({
+      title: "Member removed",
+      description: "The family member has been removed from the tree.",
+    });
+  }, [firestore, householdId, user, toast]);
+
   useEffect(() => {
     if (persons) {
       const newNodes: Node[] = persons.map((person: any, index: number) => {
@@ -86,12 +106,16 @@ export default function FamilyTreePage() {
           id: person.id,
           type: "familyMember",
           position: { x: index * 250, y: index * 150 },
-          data: { person },
+          data: { 
+            person,
+            onEdit: handleEdit,
+            onDelete: handleDelete
+          },
         };
       });
       setNodes(newNodes);
     }
-  }, [persons, setNodes]);
+  }, [persons, setNodes, handleEdit, handleDelete]);
 
   useEffect(() => {
     if (relationships) {
@@ -132,7 +156,7 @@ export default function FamilyTreePage() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 1024 * 1024) { // 1MB limit for Firestore doc
+      if (file.size > 1024 * 1024) {
         toast({
           variant: "destructive",
           title: "File too large",
@@ -145,56 +169,62 @@ export default function FamilyTreePage() {
       reader.onloadend = () => {
         const base64String = reader.result as string;
         setImagePreview(base64String);
-        setNewPerson(prev => ({ ...prev, photoUrl: base64String }));
+        setPersonForm(prev => ({ ...prev, photoUrl: base64String }));
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleAdd = async () => {
-    if (!newPerson.name || !user) return;
+  const handleSave = async () => {
+    if (!personForm.name || !user) return;
 
     const personData = {
       householdId,
-      name: newPerson.name,
-      birthDate: newPerson.birthDate || "",
-      gender: newPerson.gender,
-      role: newPerson.role,
-      description: newPerson.description || "",
-      photoUrl: newPerson.photoUrl || `https://picsum.photos/seed/${Date.now()}/200/200`,
-      createdAt: serverTimestamp(),
-      createdByUserId: user.uid,
+      name: personForm.name,
+      birthDate: personForm.birthDate || "",
+      gender: personForm.gender,
+      role: personForm.role,
+      description: personForm.description || "",
+      photoUrl: personForm.photoUrl || `https://picsum.photos/seed/${Date.now()}/200/200`,
+      updatedAt: serverTimestamp(),
       householdMembers: { [user.uid]: "admin" }
     };
 
-    const personsRef = collection(firestore, "households", householdId, "persons");
-    const docRef = await addDoc(personsRef, personData);
-
-    if (newPerson.relatedToId && newPerson.relationType) {
-      const relRef = collection(firestore, "households", householdId, "relationships");
-      addDocumentNonBlocking(relRef, {
-        householdId,
-        person1Id: newPerson.relationType === "parent-child" ? newPerson.relatedToId : docRef.id,
-        person2Id: newPerson.relationType === "parent-child" ? docRef.id : newPerson.relatedToId,
-        type: newPerson.relationType,
+    if (isEditMode && personForm.id) {
+      const personRef = doc(firestore, "households", householdId, "persons", personForm.id);
+      updateDocumentNonBlocking(personRef, personData);
+      toast({ title: "Profile updated" });
+    } else {
+      const personsRef = collection(firestore, "households", householdId, "persons");
+      const docRef = await addDoc(personsRef, {
+        ...personData,
         createdAt: serverTimestamp(),
         createdByUserId: user.uid,
-        householdMembers: { [user.uid]: "admin" }
       });
+
+      if (personForm.relatedToId && personForm.relationType) {
+        const relRef = collection(firestore, "households", householdId, "relationships");
+        addDocumentNonBlocking(relRef, {
+          householdId,
+          person1Id: personForm.relationType === "parent-child" ? personForm.relatedToId : docRef.id,
+          person2Id: personForm.relationType === "parent-child" ? docRef.id : personForm.relatedToId,
+          type: personForm.relationType,
+          createdAt: serverTimestamp(),
+          createdByUserId: user.uid,
+          householdMembers: { [user.uid]: "admin" }
+        });
+      }
+      toast({ title: "Member added" });
     }
 
-    setIsAddOpen(false);
+    setIsDialogOpen(false);
+    resetForm();
+  };
+
+  const resetForm = () => {
+    setIsEditMode(false);
     setImagePreview(null);
-    setNewPerson({ 
-      name: "", 
-      birthDate: "", 
-      gender: "male", 
-      role: "Member", 
-      description: "", 
-      relatedToId: "", 
-      relationType: "parent-child",
-      photoUrl: ""
-    });
+    setPersonForm(initialPersonState);
   };
 
   return (
@@ -214,7 +244,7 @@ export default function FamilyTreePage() {
             <Share2 className="h-4 w-4" />
             Share
           </Button>
-          <Button className="gap-2 shadow-lg" onClick={() => setIsAddOpen(true)}>
+          <Button className="gap-2 shadow-lg" onClick={() => { resetForm(); setIsDialogOpen(true); }}>
             <Plus className="h-4 w-4" />
             {t("tree.addPerson")}
           </Button>
@@ -265,10 +295,10 @@ export default function FamilyTreePage() {
         )}
       </div>
 
-      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{t("tree.addPerson")}</DialogTitle>
+            <DialogTitle>{isEditMode ? "Edit Profile" : t("tree.addPerson")}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-6 py-4">
             <div className="flex flex-col items-center gap-4">
@@ -301,8 +331,8 @@ export default function FamilyTreePage() {
                 <Label htmlFor="name">Name</Label>
                 <Input 
                   id="name" 
-                  value={newPerson.name} 
-                  onChange={(e) => setNewPerson({...newPerson, name: e.target.value})} 
+                  value={personForm.name} 
+                  onChange={(e) => setPersonForm({...personForm, name: e.target.value})} 
                   placeholder="Full Name" 
                 />
               </div>
@@ -310,8 +340,8 @@ export default function FamilyTreePage() {
                 <Label htmlFor="birth">Birth Date</Label>
                 <Input 
                   id="birth" 
-                  value={newPerson.birthDate} 
-                  onChange={(e) => setNewPerson({...newPerson, birthDate: e.target.value})} 
+                  value={personForm.birthDate} 
+                  onChange={(e) => setPersonForm({...personForm, birthDate: e.target.value})} 
                   placeholder="DD-MM-YYYY" 
                 />
               </div>
@@ -320,7 +350,7 @@ export default function FamilyTreePage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>Gender</Label>
-                <Select value={newPerson.gender} onValueChange={(val) => setNewPerson({...newPerson, gender: val})}>
+                <Select value={personForm.gender} onValueChange={(val) => setPersonForm({...personForm, gender: val})}>
                   <SelectTrigger>
                     <SelectValue placeholder="Gender" />
                   </SelectTrigger>
@@ -334,8 +364,8 @@ export default function FamilyTreePage() {
               <div className="grid gap-2">
                 <Label>Role</Label>
                 <Input 
-                  value={newPerson.role} 
-                  onChange={(e) => setNewPerson({...newPerson, role: e.target.value})} 
+                  value={personForm.role} 
+                  onChange={(e) => setPersonForm({...personForm, role: e.target.value})} 
                   placeholder="e.g. Grandfather, Son" 
                 />
               </div>
@@ -344,20 +374,20 @@ export default function FamilyTreePage() {
             <div className="grid gap-2">
               <Label>Description</Label>
               <Textarea 
-                value={newPerson.description} 
-                onChange={(e) => setNewPerson({...newPerson, description: e.target.value})} 
+                value={personForm.description} 
+                onChange={(e) => setPersonForm({...personForm, description: e.target.value})} 
                 placeholder="A short note about this person..."
                 className="h-20"
               />
             </div>
 
-            {persons && persons.length > 0 && (
+            {!isEditMode && persons && persons.length > 0 && (
               <div className="border-t pt-4 space-y-4">
                 <p className="text-sm font-bold text-primary">Relationship Mapping</p>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label>Related To</Label>
-                    <Select value={newPerson.relatedToId} onValueChange={(val) => setNewPerson({...newPerson, relatedToId: val})}>
+                    <Select value={personForm.relatedToId} onValueChange={(val) => setPersonForm({...personForm, relatedToId: val})}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select relative" />
                       </SelectTrigger>
@@ -370,7 +400,7 @@ export default function FamilyTreePage() {
                   </div>
                   <div className="grid gap-2">
                     <Label>Relation</Label>
-                    <Select value={newPerson.relationType} onValueChange={(val) => setNewPerson({...newPerson, relationType: val})}>
+                    <Select value={personForm.relationType} onValueChange={(val) => setPersonForm({...personForm, relationType: val})}>
                       <SelectTrigger>
                         <SelectValue placeholder="Relation Type" />
                       </SelectTrigger>
@@ -385,7 +415,9 @@ export default function FamilyTreePage() {
             )}
           </div>
           <DialogFooter>
-            <Button onClick={handleAdd} className="w-full sm:w-auto">{t("common.add")}</Button>
+            <Button onClick={handleSave} className="w-full sm:w-auto">
+              {isEditMode ? "Update Profile" : t("common.add")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

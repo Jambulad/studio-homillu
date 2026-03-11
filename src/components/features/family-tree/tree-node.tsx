@@ -4,7 +4,7 @@
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { User, Heart, Users, Sparkles, MessageSquare } from "lucide-react";
+import { User, Users, Sparkles, MessageSquare, Pencil, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { generateFamilyTreeDescription } from "@/ai/flows/generate-family-tree-description";
 import { useState } from "react";
@@ -34,12 +34,12 @@ interface TreeNodeProps {
   data: {
     person: Person;
     onEdit?: (person: Person) => void;
-    onAddRelation?: (person: Person) => void;
+    onDelete?: (personId: string) => void;
   };
 }
 
 export function TreeNode({ data }: TreeNodeProps) {
-  const { person, onEdit, onAddRelation } = data;
+  const { person, onEdit, onDelete } = data;
   const { t } = useTranslation();
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
@@ -89,7 +89,26 @@ export function TreeNode({ data }: TreeNodeProps) {
         <Tooltip>
           <TooltipTrigger asChild>
             <Card className="p-3 flex flex-col items-center gap-2 w-44 shadow-lg hover:shadow-2xl transition-all border-primary/20 bg-card/90 backdrop-blur-md z-10 relative cursor-help">
-              <div className="relative">
+              <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button 
+                  variant="secondary" 
+                  size="icon" 
+                  className="h-7 w-7 bg-background/80" 
+                  onClick={(e) => { e.stopPropagation(); onEdit?.(person); }}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  size="icon" 
+                  className="h-7 w-7" 
+                  onClick={(e) => { e.stopPropagation(); onDelete?.(person.id); }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+
+              <div className="relative mt-2">
                 <Avatar className="h-20 w-20 ring-4 ring-primary ring-offset-4 transition-transform group-hover:scale-105">
                   <AvatarImage src={person.photoUrl} alt={person.name} />
                   <AvatarFallback className="bg-primary/10 text-primary">
@@ -99,8 +118,8 @@ export function TreeNode({ data }: TreeNodeProps) {
                 {GenderIcon}
               </div>
               
-              <div className="text-center overflow-hidden">
-                <h3 className="font-bold text-base leading-tight truncate w-full">{person.name}</h3>
+              <div className="text-center overflow-hidden w-full">
+                <h3 className="font-bold text-base leading-tight truncate px-1">{person.name}</h3>
                 <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">
                   {person.role || "Member"}
                 </p>
