@@ -12,7 +12,9 @@ import {
   ChevronRight,
   TrendingUp,
   Moon,
-  Loader2
+  Database,
+  ShieldCheck,
+  Globe
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
@@ -20,6 +22,7 @@ import { getMoonPhase } from "@/lib/lunar-utils";
 import { useState, useEffect } from "react";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
+import { Badge } from "@/components/ui/badge";
 
 export default function DashboardPage() {
   const { t } = useTranslation();
@@ -95,31 +98,53 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight text-primary">
-          {t("dashboard.greeting", { name: user?.displayName || "Family" })}
-        </h1>
-        <p className="text-muted-foreground">
-          {t("dashboard.description")}
-        </p>
+    <div className="space-y-8 animate-in fade-in duration-700">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-4xl font-extrabold tracking-tight text-primary">
+            {t("dashboard.greeting", { name: user?.displayName || "Family" })}
+          </h1>
+          <p className="text-muted-foreground text-lg">
+            {t("dashboard.description")}
+          </p>
+        </div>
+        {user && (
+          <Card className="bg-primary/5 border-primary/20 shadow-sm">
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
+                <ShieldCheck className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">System Status</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-200">
+                    <Globe className="h-3 w-3 mr-1" /> Live
+                  </Badge>
+                  <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-200">
+                    <Database className="h-3 w-3 mr-1" /> Synced
+                  </Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {widgets.map((widget) => (
           <Link key={widget.href} href={widget.href}>
-            <Card className="hover:shadow-lg transition-all border-muted/50 hover:border-primary/50 group">
+            <Card className="hover:shadow-xl transition-all border-muted/50 hover:border-primary/50 group bg-card/50 backdrop-blur">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+                <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
                   {widget.title}
                 </CardTitle>
-                <widget.icon className={`h-4 w-4 ${widget.color}`} />
+                <widget.icon className={`h-5 w-5 ${widget.color}`} />
               </CardHeader>
               <CardContent>
-                <div className="text-lg font-bold group-hover:text-primary transition-colors">{widget.description}</div>
-                <div className="mt-2 flex items-center text-xs text-muted-foreground group-hover:text-primary">
-                  View details
-                  <ChevronRight className="ml-1 h-3 w-3" />
+                <div className="text-2xl font-bold group-hover:text-primary transition-colors">{widget.description}</div>
+                <div className="mt-3 flex items-center text-xs font-semibold text-muted-foreground group-hover:text-primary">
+                  Manage Collection
+                  <ChevronRight className="ml-1 h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
                 </div>
               </CardContent>
             </Card>
@@ -128,55 +153,78 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Card className="shadow-sm">
+        <Card className="shadow-lg border-muted/50 overflow-hidden relative">
+          <div className="absolute top-0 right-0 p-8 opacity-5">
+            <TrendingUp className="h-32 w-32" />
+          </div>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-accent" />
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <TrendingUp className="h-6 w-6 text-accent" />
               Family Insights
             </CardTitle>
-            <CardDescription>Real-time activity stats</CardDescription>
+            <CardDescription>Real-time collaboration activity</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span>Task Completion</span>
-                <span className="font-bold">
+          <CardContent className="space-y-6">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm font-bold">
+                <span>Household Task Completion</span>
+                <span className="text-primary">
                   {tasks?.length ? Math.round(((tasks.length - pendingTasks) / tasks.length) * 100) : 0}%
                 </span>
               </div>
-              <div className="h-2 w-full rounded-full bg-secondary">
+              <div className="h-3 w-full rounded-full bg-secondary shadow-inner">
                 <div 
-                  className="h-2 rounded-full bg-accent transition-all duration-500" 
+                  className="h-3 rounded-full bg-primary transition-all duration-1000 ease-out shadow-sm" 
                   style={{ width: `${tasks?.length ? ((tasks.length - pendingTasks) / tasks.length) * 100 : 0}%` }} 
                 />
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-dashed">
+              <h4 className="text-sm font-bold mb-3 flex items-center gap-2">
+                <Database className="h-4 w-4 text-blue-500" />
+                Database Overview
+              </h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 bg-secondary/30 rounded-lg">
+                  <p className="text-xs text-muted-foreground font-bold">ACTIVE USERS</p>
+                  <p className="text-lg font-bold">1 (Admin)</p>
+                </div>
+                <div className="p-3 bg-secondary/30 rounded-lg">
+                  <p className="text-xs text-muted-foreground font-bold">RECORDS</p>
+                  <p className="text-lg font-bold">{(tasks?.length || 0) + (shopping?.length || 0)}</p>
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {moonData && (
-          <Card className="shadow-sm relative overflow-hidden bg-indigo-50/30 dark:bg-indigo-950/10">
-            <div className="absolute top-0 right-0 p-6 opacity-10">
-              <Moon className="h-20 w-20 text-indigo-500" />
+          <Card className="shadow-lg relative overflow-hidden bg-gradient-to-br from-indigo-50/50 to-purple-50/50 dark:from-indigo-950/10 dark:to-purple-950/10 border-primary/20">
+            <div className="absolute -top-4 -right-4 p-6 opacity-10">
+              <Moon className="h-40 w-40 text-indigo-500" />
             </div>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
-                <Moon className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2 text-xl text-indigo-600 dark:text-indigo-400">
+                <Moon className="h-6 w-6" />
                 {t("lunar.currentPhase")}
               </CardTitle>
-              <CardDescription>For today, {new Date().toLocaleDateString()}</CardDescription>
+              <CardDescription className="font-medium">For today, {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</CardDescription>
             </CardHeader>
-            <CardContent className="flex items-center gap-6">
-              <div className="text-6xl drop-shadow-md">{moonData.emoji}</div>
-              <div>
-                <h3 className="text-2xl font-bold">{moonData.name}</h3>
-                <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mt-1">
-                  Illumination: {Math.round((1 - Math.abs(0.5 - moonData.phase) * 2) * 100)}%
-                </p>
+            <CardContent className="flex items-center gap-8 py-4">
+              <div className="text-8xl drop-shadow-2xl animate-pulse">{moonData.emoji}</div>
+              <div className="space-y-2">
+                <h3 className="text-3xl font-extrabold tracking-tight">{moonData.name}</h3>
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest">
+                    Illumination: {Math.round((1 - Math.abs(0.5 - moonData.phase) * 2) * 100)}%
+                  </p>
+                  <p className="text-xs text-indigo-500 font-semibold italic">Auspicious window is open</p>
+                </div>
                 <Link href="/lunar">
-                  <span className="text-xs text-indigo-500 hover:underline mt-2 inline-block font-bold">
-                    Explore Lunar Calendar &rarr;
-                  </span>
+                  <Badge className="mt-4 hover:bg-primary transition-colors cursor-pointer px-4 py-1">
+                    Explore Details &rarr;
+                  </Badge>
                 </Link>
               </div>
             </CardContent>

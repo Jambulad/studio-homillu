@@ -20,7 +20,7 @@ import "@xyflow/react/dist/style.css";
 
 import { TreeNode, Person } from "@/components/features/family-tree/tree-node";
 import { Button } from "@/components/ui/button";
-import { Plus, GitBranch, Share2, Info, Loader2, Camera, Database, Trash2 } from "lucide-react";
+import { Plus, GitBranch, Share2, Info, Loader2, Camera, Database, Trash2, CloudUpload } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,7 +34,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, serverTimestamp, doc, addDoc, writeBatch } from "firebase/firestore";
+import { collection, serverTimestamp, doc, addDoc } from "firebase/firestore";
 import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { useToast } from "@/hooks/use-toast";
 
@@ -42,6 +42,7 @@ const nodeTypes = {
   familyMember: TreeNode,
 };
 
+// Legacy Data Constants
 const LEGACY_DATA = {
   "fname": "Changal Rayudu",
   "DOB": "",
@@ -475,6 +476,7 @@ export default function FamilyTreePage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   
   const initialPersonState: Partial<Person & { relatedToId?: string, relationType?: string }> = { 
@@ -648,8 +650,13 @@ export default function FamilyTreePage() {
   };
 
   const handleBulkImport = async () => {
-    if (!user || !firestore) return;
+    if (!user || !firestore) {
+      toast({ variant: "destructive", title: "Authentication Required", description: "Please sign in to import data." });
+      return;
+    }
+    
     setIsImporting(true);
+    setImportProgress(0);
 
     const importNode = async (node: any, parentId?: string) => {
       // Create primary person
@@ -657,7 +664,7 @@ export default function FamilyTreePage() {
         householdId,
         name: node.fname,
         birthDate: node.DOB || "",
-        gender: "male", // default assumption for primary nodes based on JSON structure
+        gender: "male", 
         role: "Family Member",
         photoUrl: `https://picsum.photos/seed/${node.fname}/200/200`,
         createdAt: serverTimestamp(),
@@ -684,11 +691,11 @@ export default function FamilyTreePage() {
       }
 
       // Handle spouse
-      if (node.spouse && node.spouse.trim() !== "" && node.spouse !== "Wife:" && node.spouse !== "Husband:") {
-        const spouseLabel = node.spouse.includes("Wife:") ? "Wife" : (node.spouse.includes("Husband:") ? "Husband" : "Spouse");
-        const spouseName = node.spouse.replace(/Wife:|Husband:/g, '').trim();
+      if (node.spouse && node.spouse.trim() !== "" && !node.spouse.endsWith(":")) {
+        const spouseLabel = node.spouse.toLowerCase().includes("wife") ? "Wife" : (node.spouse.toLowerCase().includes("husband") ? "Husband" : "Spouse");
+        const spouseName = node.spouse.replace(/Wife:|Husband:/gi, '').trim();
         
-        if (spouseName && spouseName !== "???") {
+        if (spouseName && spouseName !== "???" && spouseName !== "") {
           const spouseDoc = await addDoc(personsRef, {
             householdId,
             name: spouseName,
@@ -724,15 +731,15 @@ export default function FamilyTreePage() {
     try {
       await importNode(LEGACY_DATA);
       toast({
-        title: "Import Success",
-        description: "Legacy family data has been successfully imported.",
+        title: "Import Complete",
+        description: "Your family lineage has been successfully synchronized and published.",
       });
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
       toast({
         variant: "destructive",
-        title: "Import Failed",
-        description: "There was an error importing your data.",
+        title: "Publish Failed",
+        description: e.message || "There was an error publishing your tree to the database.",
       });
     } finally {
       setIsImporting(false);
@@ -760,12 +767,12 @@ export default function FamilyTreePage() {
         <div className="flex gap-2">
           <Button 
             variant="outline" 
-            className="gap-2 border-primary/20 hover:bg-primary/5"
+            className="gap-2 border-primary/20 hover:bg-primary/5 shadow-sm"
             onClick={handleBulkImport}
             disabled={isImporting}
           >
-            {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
-            Import Legacy Data
+            {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}
+            {isImporting ? "Publishing..." : "Publish Legacy Tree"}
           </Button>
           <Button className="gap-2 shadow-lg" onClick={() => { resetForm(); setIsDialogOpen(true); }}>
             <Plus className="h-4 w-4" />
@@ -776,12 +783,17 @@ export default function FamilyTreePage() {
 
       <div className="flex-1 bg-secondary/10 rounded-2xl border-2 border-dashed border-muted overflow-hidden relative shadow-inner">
         {(isPersonsLoading || isImporting) ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-20">
-            <div className="flex flex-col items-center gap-4">
+          <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-20 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-4 bg-card p-8 rounded-2xl shadow-2xl border border-primary/20">
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <p className="text-sm font-medium animate-pulse">
-                {isImporting ? "Processing legacy data lineage..." : "Mapping your legacy..."}
-              </p>
+              <div className="text-center">
+                <p className="text-lg font-bold">
+                  {isImporting ? "Synchronizing Records..." : "Connecting to Database..."}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {isImporting ? "Building lineage relationships from legacy data" : "Mapping your family's heritage"}
+                </p>
+              </div>
             </div>
           </div>
         ) : (
@@ -805,15 +817,15 @@ export default function FamilyTreePage() {
             <Panel position="bottom-center" className="bg-background/80 backdrop-blur-md p-4 rounded-xl border shadow-xl flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-0.5 bg-primary" />
-                <span className="text-xs font-bold text-muted-foreground">Bloodline</span>
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Bloodline</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-0.5 bg-accent border-dashed border-t" />
-                <span className="text-xs font-bold text-muted-foreground">Marriage</span>
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Marriage</span>
               </div>
-              <div className="flex items-center gap-2 ml-4 text-xs text-muted-foreground italic">
-                <Info className="h-3 w-3" />
-                Drag nodes to reorganize
+              <div className="flex items-center gap-2 ml-4 text-xs text-muted-foreground italic border-l pl-4">
+                <Info className="h-3.5 w-3.5" />
+                Drag nodes to reorganize tree structure
               </div>
             </Panel>
           </ReactFlow>
@@ -823,22 +835,25 @@ export default function FamilyTreePage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{isEditMode ? "Edit Profile" : t("tree.addPerson")}</DialogTitle>
+            <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+              <Plus className="h-6 w-6 text-primary" />
+              {isEditMode ? "Update Member Profile" : t("tree.addPerson")}
+            </DialogTitle>
           </DialogHeader>
           <div className="grid gap-6 py-4">
             <div className="flex flex-col items-center gap-4">
               <div className="relative group">
-                <Avatar className="h-24 w-24 border-4 border-primary/20 group-hover:border-primary/50 transition-colors">
+                <Avatar className="h-28 w-28 border-4 border-primary/20 group-hover:border-primary/50 transition-colors shadow-lg">
                   <AvatarImage src={imagePreview || ""} />
                   <AvatarFallback className="bg-secondary">
-                    <Camera className="h-8 w-8 text-muted-foreground" />
+                    <Camera className="h-10 w-10 text-muted-foreground opacity-50" />
                   </AvatarFallback>
                 </Avatar>
                 <Label 
                   htmlFor="photo-upload" 
-                  className="absolute bottom-0 right-0 bg-primary text-primary-foreground p-1.5 rounded-full cursor-pointer shadow-lg hover:bg-primary/90 transition-colors"
+                  className="absolute bottom-0 right-0 bg-primary text-primary-foreground p-2 rounded-full cursor-pointer shadow-xl hover:bg-primary/90 transition-transform active:scale-95"
                 >
-                  <Plus className="h-4 w-4" />
+                  <Plus className="h-5 w-5" />
                 </Label>
                 <Input 
                   id="photo-upload" 
@@ -848,36 +863,38 @@ export default function FamilyTreePage() {
                   onChange={handleImageChange}
                 />
               </div>
-              <p className="text-xs text-muted-foreground">Profile Picture (Max 1MB)</p>
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Profile Picture (Max 1MB)</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="name">Name</Label>
+                <Label htmlFor="name" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Full Name</Label>
                 <Input 
                   id="name" 
                   value={personForm.name} 
                   onChange={(e) => setPersonForm({...personForm, name: e.target.value})} 
-                  placeholder="Full Name" 
+                  placeholder="Enter name" 
+                  className="bg-secondary/20"
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="birth">Birth Date</Label>
+                <Label htmlFor="birth" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Birth Year/Date</Label>
                 <Input 
                   id="birth" 
                   value={personForm.birthDate} 
                   onChange={(e) => setPersonForm({...personForm, birthDate: e.target.value})} 
-                  placeholder="DD-MM-YYYY" 
+                  placeholder="e.g. 1950" 
+                  className="bg-secondary/20"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label>Gender</Label>
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Gender</Label>
                 <Select value={personForm.gender} onValueChange={(val) => setPersonForm({...personForm, gender: val})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Gender" />
+                  <SelectTrigger className="bg-secondary/20">
+                    <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="male">Male</SelectItem>
@@ -887,34 +904,35 @@ export default function FamilyTreePage() {
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label>Role</Label>
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Family Role</Label>
                 <Input 
                   value={personForm.role} 
                   onChange={(e) => setPersonForm({...personForm, role: e.target.value})} 
-                  placeholder="e.g. Grandfather, Son" 
+                  placeholder="e.g. Grandfather" 
+                  className="bg-secondary/20"
                 />
               </div>
             </div>
 
             <div className="grid gap-2">
-              <Label>Description</Label>
+              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Short Biography</Label>
               <Textarea 
                 value={personForm.description} 
                 onChange={(e) => setPersonForm({...personForm, description: e.target.value})} 
-                placeholder="A short note about this person..."
-                className="h-20"
+                placeholder="Briefly describe this family member..."
+                className="h-24 bg-secondary/20 resize-none"
               />
             </div>
 
             {!isEditMode && persons && persons.length > 0 && (
-              <div className="border-t pt-4 space-y-4">
-                <p className="text-sm font-bold text-primary">Relationship Mapping</p>
+              <div className="border-t pt-6 space-y-4">
+                <p className="text-sm font-black text-primary uppercase tracking-tighter">Immediate Relationship Mapping</p>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
-                    <Label>Related To</Label>
+                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Related To</Label>
                     <Select value={personForm.relatedToId} onValueChange={(val) => setPersonForm({...personForm, relatedToId: val})}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select relative" />
+                      <SelectTrigger className="bg-secondary/20">
+                        <SelectValue placeholder="Choose relative" />
                       </SelectTrigger>
                       <SelectContent>
                         {persons.map((p: any) => (
@@ -924,10 +942,10 @@ export default function FamilyTreePage() {
                     </Select>
                   </div>
                   <div className="grid gap-2">
-                    <Label>Relation</Label>
+                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Relation Type</Label>
                     <Select value={personForm.relationType} onValueChange={(val) => setPersonForm({...personForm, relationType: val})}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Relation Type" />
+                      <SelectTrigger className="bg-secondary/20">
+                        <SelectValue placeholder="Relation" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="parent-child">Child of</SelectItem>
@@ -939,8 +957,8 @@ export default function FamilyTreePage() {
               </div>
             )}
           </div>
-          <DialogFooter>
-            <Button onClick={handleSave} className="w-full sm:w-auto">
+          <DialogFooter className="pt-4 border-t">
+            <Button onClick={handleSave} className="w-full sm:w-auto font-bold px-8 py-6 text-lg">
               {isEditMode ? "Update Profile" : t("common.add")}
             </Button>
           </DialogFooter>
