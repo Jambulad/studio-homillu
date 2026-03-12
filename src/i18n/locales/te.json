@@ -1,3 +1,4 @@
+
 {
   "common": {
     "appName": "హోమిల్లు (HomIllu)",
@@ -51,7 +52,14 @@
     "newEvent": "కొత్త ఈవెంట్",
     "export": "క్యాలెండర్‌ను ఎగుమతి చేయి",
     "noEvents": "ఈ రోజు ఎటువంటి ఈవెంట్‌లు లేవు.",
-    "eventTitle": "ఈవెంట్ శీర్షిక"
+    "eventTitle": "ఈవెంట్ శీర్షిక",
+    "traditionalContext": "సాంప్రదాయ సమాచారం",
+    "tithi": "వైదిక తిథి",
+    "nakshatra": "నక్షత్రం",
+    "raasi": "రాశి",
+    "rahukalam": "రాహుకాలం",
+    "auspicious": "శుభ సమయం",
+    "open": "అనుకూలం"
   },
   "moments": {
     "title": "కుటుంబ జ్ఞాపకాలు",

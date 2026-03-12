@@ -133,16 +133,21 @@ export function NavBar() {
           </Link>
         </div>
 
-        <div className="flex items-center space-x-3">
-          <Button variant="ghost" size="icon" onClick={toggleTheme}>
+        <div className="flex items-center space-x-2 sm:space-x-3">
+          <Button variant="ghost" size="icon" onClick={toggleTheme} className="h-9 w-9">
             {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
           </Button>
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="hidden sm:flex gap-2">
+              <Button variant="outline" size="sm" className="flex gap-2 h-9 px-3">
                 <Globe className="h-4 w-4" />
-                {i18n.language === "en" ? "English" : "తెలుగు"}
+                <span className="hidden xs:inline">
+                  {i18n.language === "en" ? "English" : "తెలుగు"}
+                </span>
+                <span className="xs:hidden">
+                  {i18n.language === "en" ? "EN" : "TE"}
+                </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">

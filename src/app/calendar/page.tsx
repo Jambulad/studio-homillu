@@ -402,40 +402,40 @@ export default function CalendarPage() {
             <CardHeader className="pb-2 bg-accent/5">
               <CardTitle className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-accent">
                 <Info className="h-4 w-4" />
-                Traditional Context
+                {t("calendar.traditionalContext")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 py-4 text-xs font-medium">
               <div className="flex justify-between items-center border-b pb-2 border-dashed">
                 <span className="text-muted-foreground flex items-center gap-1.5">
-                  <Moon className="h-3 w-3" /> Vedic Tithi
+                  <Moon className="h-3 w-3" /> {t("calendar.tithi")}
                 </span>
                 <span className="font-bold text-primary">{tithi}</span>
               </div>
               <div className="flex justify-between items-center border-b pb-2 border-dashed">
                 <span className="text-muted-foreground flex items-center gap-1.5">
-                  <Star className="h-3 w-3" /> Star (Nakshatra)
+                  <Star className="h-3 w-3" /> {t("calendar.nakshatra")}
                 </span>
                 <span className="font-bold text-primary">{nakshatra}</span>
               </div>
               <div className="flex justify-between items-center border-b pb-2 border-dashed">
                 <span className="text-muted-foreground flex items-center gap-1.5">
-                  <Compass className="h-3 w-3" /> Moon Sign (Raasi)
+                  <Compass className="h-3 w-3" /> {t("calendar.raasi")}
                 </span>
                 <span className="font-bold text-primary">{raasi}</span>
               </div>
               <div className="flex justify-between items-center border-b pb-2 border-dashed">
                 <span className="text-muted-foreground flex items-center gap-1.5">
-                  <Zap className="h-3 w-3" /> Rahukalam
+                  <Zap className="h-3 w-3" /> {t("calendar.rahukalam")}
                 </span>
                 <span className="font-bold text-destructive">{rahukalam}</span>
               </div>
               <div className="flex justify-between items-center pt-1">
                 <span className="text-muted-foreground flex items-center gap-1.5">
-                  <Sparkles className="h-3 w-3" /> Auspicious
+                  <Sparkles className="h-3 w-3" /> {t("calendar.auspicious")}
                 </span>
                 <span className="font-bold text-green-600">
-                  Open
+                  {t("calendar.open")}
                 </span>
               </div>
             </CardContent>

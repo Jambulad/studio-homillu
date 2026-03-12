@@ -52,7 +52,14 @@
     "newEvent": "New Event",
     "export": "Export Calendar",
     "noEvents": "No events for this day.",
-    "eventTitle": "Event Title"
+    "eventTitle": "Event Title",
+    "traditionalContext": "Traditional Context",
+    "tithi": "Vedic Tithi",
+    "nakshatra": "Star (Nakshatra)",
+    "raasi": "Moon Sign (Raasi)",
+    "rahukalam": "Rahukalam",
+    "auspicious": "Auspicious",
+    "open": "Open"
   },
   "moments": {
     "title": "Family Moments",
