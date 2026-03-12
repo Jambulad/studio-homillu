@@ -24,6 +24,12 @@
       "description": "Happy family",
       "imageUrl": "https://picsum.photos/seed/family/1200/600",
       "imageHint": "happy family"
+    },
+    {
+      "id": "dhileepudu-hero",
+      "description": "Dhileepudu on horseback with a black dog",
+      "imageUrl": "https://picsum.photos/seed/dhileepudu/1200/600",
+      "imageHint": "man horseback dog"
     }
   ]
 }

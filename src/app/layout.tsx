@@ -1,8 +1,10 @@
+
 import "./globals.css";
 import { FirebaseClientProvider } from "@/firebase";
 import { AuthProvider } from "@/lib/auth-context";
 import { I18nProvider } from "@/components/providers/i18n-provider";
 import { NavBar } from "@/components/layout/nav-bar";
+import { Footer } from "@/components/layout/footer";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -43,17 +45,18 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
-      <body className="font-body min-h-screen bg-background antialiased transition-colors duration-300">
+      <body className="font-body min-h-screen bg-background antialiased transition-colors duration-300 flex flex-col">
         <FirebaseClientProvider>
           <AuthProvider>
             <I18nProvider>
               <ThemeProvider>
                 <TooltipProvider>
-                  <div className="relative flex min-h-screen flex-col">
+                  <div className="relative flex flex-1 flex-col">
                     <NavBar />
                     <main className="flex-1 container mx-auto p-4 md:p-6 lg:p-8">
                       {children}
                     </main>
+                    <Footer />
                   </div>
                   <Toaster />
                 </TooltipProvider>

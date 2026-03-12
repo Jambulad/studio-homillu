@@ -20,7 +20,8 @@ import {
   Menu,
   Mail,
   Lock,
-  Loader2
+  Loader2,
+  Heart
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -75,6 +76,7 @@ export function NavBar() {
     { href: "/calendar", label: t("nav.calendar"), icon: Calendar },
     { href: "/family-tree", label: t("nav.tree"), icon: GitBranch },
     { href: "/moments", label: t("nav.moments"), icon: Clock },
+    { href: "/contacts", label: "Developer", icon: Heart },
   ];
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
