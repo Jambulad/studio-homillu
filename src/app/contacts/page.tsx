@@ -1,3 +1,4 @@
+
 "use client"
 
 import Image from "next/image";
@@ -51,8 +52,6 @@ export default function ContactsPage() {
         message: data.message,
       });
       
-      // We treat all returns as success if the AI gave us a preview,
-      // as our flow now has robust fallback logic.
       toast({
         title: "Message Received",
         description: result.preview,
@@ -66,7 +65,7 @@ export default function ContactsPage() {
       toast({
         variant: "destructive",
         title: "Submission Note",
-        description: "Your message was captured, but the AI notification service is currently offline. Dhileepudu will still receive your inquiry.",
+        description: "Your message was captured, but the AI notification service is currently offline.",
       });
     } finally {
       setIsSending(false);
