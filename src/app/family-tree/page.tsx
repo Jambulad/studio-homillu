@@ -15,7 +15,8 @@ import {
   Edge,
   Node,
   Panel,
-  useReactFlow
+  useReactFlow,
+  ReactFlowProvider
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
@@ -88,7 +89,7 @@ const DUMMY_RELATIONSHIPS = [
   { id: "r3", person1Id: "d1", person2Id: "d4", type: "parent-child" },
 ];
 
-export default function FamilyTreePage() {
+function FamilyTreeContent() {
   const { t } = useTranslation();
   const firestore = useFirestore();
   const { user } = useUser();
@@ -162,7 +163,6 @@ export default function FamilyTreePage() {
     toast({ title: "Member removed" });
   }, [firestore, householdId, user, toast]);
 
-  // Hierarchical layout logic for Org Chart mode
   const layoutNodes = useCallback((persons: any[], relationships: any[], mode: "free" | "org") => {
     if (mode === "free") {
       return persons.map((person, index) => ({
@@ -173,7 +173,6 @@ export default function FamilyTreePage() {
       }));
     }
 
-    // Simple vertical hierarchy layout
     const nodeMap = new Map();
     const childrenMap = new Map();
     const spouseMap = new Map();
@@ -213,13 +212,11 @@ export default function FamilyTreePage() {
         data: { person, onEdit: handleEdit, onDelete: handleDelete },
       });
 
-      // Handle spouse
       const spouseId = spouseMap.get(id);
       if (spouseId && !visited.has(spouseId)) {
         processNode(spouseId, level, 0);
       }
 
-      // Handle children
       const children = childrenMap.get(id) || [];
       children.forEach((childId: string, idx: number) => {
         processNode(childId, level + 1, idx * 50);
@@ -228,7 +225,6 @@ export default function FamilyTreePage() {
 
     Array.from(roots).forEach((rootId: any) => processNode(rootId, 0, 0));
 
-    // Fill in any disconnected nodes
     persons.forEach(p => {
       if (!visited.has(p.id)) processNode(p.id, 0, 0);
     });
@@ -258,7 +254,6 @@ export default function FamilyTreePage() {
       });
       setEdges(newEdges);
       
-      // Auto-fit view after layout
       setTimeout(() => fitView({ padding: 0.2, duration: 800 }), 100);
     }
   }, [displayPersons, displayRelationships, viewMode, setNodes, setEdges, layoutNodes, fitView]);
@@ -819,5 +814,13 @@ export default function FamilyTreePage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function FamilyTreePage() {
+  return (
+    <ReactFlowProvider>
+      <FamilyTreeContent />
+    </ReactFlowProvider>
   );
 }
