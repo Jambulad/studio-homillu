@@ -1,4 +1,3 @@
-
 import "./globals.css";
 import { FirebaseClientProvider } from "@/firebase";
 import { AuthProvider } from "@/lib/auth-context";
