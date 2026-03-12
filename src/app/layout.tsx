@@ -1,3 +1,4 @@
+
 import "./globals.css";
 import { FirebaseClientProvider } from "@/firebase";
 import { AuthProvider } from "@/lib/auth-context";
@@ -5,6 +6,7 @@ import { I18nProvider } from "@/components/providers/i18n-provider";
 import { NavBar } from "@/components/layout/nav-bar";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 export const metadata = {
   title: "HomIllu - Family Hub",
@@ -28,13 +30,15 @@ export default function RootLayout({
           <AuthProvider>
             <I18nProvider>
               <ThemeProvider>
-                <div className="relative flex min-h-screen flex-col">
-                  <NavBar />
-                  <main className="flex-1 container mx-auto p-4 md:p-6 lg:p-8">
-                    {children}
-                  </main>
-                </div>
-                <Toaster />
+                <TooltipProvider>
+                  <div className="relative flex min-h-screen flex-col">
+                    <NavBar />
+                    <main className="flex-1 container mx-auto p-4 md:p-6 lg:p-8">
+                      {children}
+                    </main>
+                  </div>
+                  <Toaster />
+                </TooltipProvider>
               </ThemeProvider>
             </I18nProvider>
           </AuthProvider>

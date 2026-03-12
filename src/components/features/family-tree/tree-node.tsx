@@ -14,7 +14,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
@@ -85,99 +84,97 @@ export function TreeNode({ data }: TreeNodeProps) {
   );
 
   return (
-    <TooltipProvider>
-      <div className="relative group">
-        <Handle type="target" position={Position.Top} className="w-3 h-3 bg-primary border-2 border-background" />
-        
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Card className="p-3 flex flex-col items-center gap-2 w-44 shadow-lg hover:shadow-2xl transition-all border-primary/20 bg-card/90 backdrop-blur-md z-10 relative cursor-help">
-              <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button 
-                  variant="secondary" 
-                  size="icon" 
-                  className="h-7 w-7 bg-background/80" 
-                  onClick={(e) => { e.stopPropagation(); onEdit?.(person); }}
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-                <Button 
-                  variant="destructive" 
-                  size="icon" 
-                  className="h-7 w-7" 
-                  onClick={(e) => { e.stopPropagation(); onDelete?.(person.id); }}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
+    <div className="relative group">
+      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-primary border-2 border-background" />
+      
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Card className="p-3 flex flex-col items-center gap-2 w-44 shadow-lg hover:shadow-2xl transition-all border-primary/20 bg-card/90 backdrop-blur-md z-10 relative cursor-help">
+            <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button 
+                variant="secondary" 
+                size="icon" 
+                className="h-7 w-7 bg-background/80" 
+                onClick={(e) => { e.stopPropagation(); onEdit?.(person); }}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+              <Button 
+                variant="destructive" 
+                size="icon" 
+                className="h-7 w-7" 
+                onClick={(e) => { e.stopPropagation(); onDelete?.(person.id); }}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
 
-              <div className="relative mt-2">
-                <Avatar className="h-20 w-20 ring-4 ring-primary ring-offset-4 transition-transform group-hover:scale-105">
-                  <AvatarImage src={person.photoUrl} alt={person.name} />
-                  <AvatarFallback className="bg-primary/10 text-primary">
-                    <User className="h-10 w-10" />
-                  </AvatarFallback>
-                </Avatar>
-                {GenderIcon}
-                {person.isConfirmed && (
-                  <div className="absolute -bottom-1 -right-1 bg-green-500 text-white rounded-full p-1 shadow-md border-2 border-white" title="Consent Confirmed">
-                    <CheckCircle2 className="h-3 w-3" />
-                  </div>
+            <div className="relative mt-2">
+              <Avatar className="h-20 w-20 ring-4 ring-primary ring-offset-4 transition-transform group-hover:scale-105">
+                <AvatarImage src={person.photoUrl} alt={person.name} />
+                <AvatarFallback className="bg-primary/10 text-primary">
+                  <User className="h-10 w-10" />
+                </AvatarFallback>
+              </Avatar>
+              {GenderIcon}
+              {person.isConfirmed && (
+                <div className="absolute -bottom-1 -right-1 bg-green-500 text-white rounded-full p-1 shadow-md border-2 border-white" title="Consent Confirmed">
+                  <CheckCircle2 className="h-3 w-3" />
+                </div>
+              )}
+            </div>
+            
+            <div className="text-center overflow-hidden w-full">
+              <h3 className="font-bold text-base leading-tight truncate px-1">{person.name}</h3>
+              <div className="flex flex-col gap-1 mt-1">
+                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+                  {person.role || "Member"}
+                </p>
+                {person.email && !person.isConfirmed && (
+                  <Badge variant="secondary" className="text-[8px] h-4 gap-1 px-1.5 mx-auto font-black uppercase tracking-tighter">
+                    <Clock className="h-2 w-2" /> Pending
+                  </Badge>
                 )}
               </div>
-              
-              <div className="text-center overflow-hidden w-full">
-                <h3 className="font-bold text-base leading-tight truncate px-1">{person.name}</h3>
-                <div className="flex flex-col gap-1 mt-1">
-                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
-                    {person.role || "Member"}
-                  </p>
-                  {person.email && !person.isConfirmed && (
-                    <Badge variant="secondary" className="text-[8px] h-4 gap-1 px-1.5 mx-auto font-black uppercase tracking-tighter">
-                      <Clock className="h-2 w-2" /> Pending
-                    </Badge>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex justify-center gap-1 mt-2">
-                <Button 
-                  variant="secondary" 
-                  size="icon" 
-                  className="h-8 w-8" 
-                  onClick={handleAiDescription}
-                  disabled={isGenerating}
-                  title={t("tree.generateDescription")}
-                >
-                  {isGenerating ? (
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                  ) : (
-                    <Sparkles className="h-4 w-4 text-primary" />
-                  )}
-                </Button>
-              </div>
-            </Card>
-          </TooltipTrigger>
-          <TooltipContent side="right" className="max-w-[200px] p-4 bg-popover/95 backdrop-blur shadow-xl border-primary/20">
-            <div className="space-y-2">
-              <p className="font-bold text-sm text-primary flex items-center gap-2">
-                <MessageSquare className="h-3.5 w-3.5" />
-                About {person.name.split(' ')[0]}
-              </p>
-              {person.email && (
-                <p className="text-[10px] font-bold text-muted-foreground break-all bg-muted p-1 rounded">
-                  {person.email}
-                </p>
-              )}
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                {person.description || "No description provided yet."}
-              </p>
             </div>
-          </TooltipContent>
-        </Tooltip>
 
-        <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-primary border-2 border-background" />
-      </div>
-    </TooltipProvider>
+            <div className="flex justify-center gap-1 mt-2">
+              <Button 
+                variant="secondary" 
+                size="icon" 
+                className="h-8 w-8" 
+                onClick={handleAiDescription}
+                disabled={isGenerating}
+                title={t("tree.generateDescription")}
+              >
+                {isGenerating ? (
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                ) : (
+                  <Sparkles className="h-4 w-4 text-primary" />
+                )}
+              </Button>
+            </div>
+          </Card>
+        </TooltipTrigger>
+        <TooltipContent side="right" className="max-w-[200px] p-4 bg-popover/95 backdrop-blur shadow-xl border-primary/20">
+          <div className="space-y-2">
+            <p className="font-bold text-sm text-primary flex items-center gap-2">
+              <MessageSquare className="h-3.5 w-3.5" />
+              About {person.name.split(' ')[0]}
+            </p>
+            {person.email && (
+              <p className="text-[10px] font-bold text-muted-foreground break-all bg-muted p-1 rounded">
+                {person.email}
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {person.description || "No description provided yet."}
+            </p>
+          </div>
+        </TooltipContent>
+      </Tooltip>
+
+      <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-primary border-2 border-background" />
+    </div>
   );
 }

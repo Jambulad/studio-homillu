@@ -10,7 +10,6 @@ import {
   MiniMap, 
   useNodesState, 
   useEdgesState, 
-  addEdge,
   Connection,
   Edge,
   Node,
@@ -54,12 +53,13 @@ import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebas
 import { collection, serverTimestamp, doc, addDoc, setDoc } from "firebase/firestore";
 import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { useToast } from "@/hooks/use-toast";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { sendFamilyInvitation } from "@/ai/flows/send-family-invitation";
 
 const nodeTypes = {
   familyMember: TreeNode,
 };
+
+const EMPTY_ARRAY: any[] = [];
 
 const JSON_TEMPLATE = {
   "fname": "Full Name",
@@ -78,7 +78,7 @@ const JSON_TEMPLATE = {
 
 const DUMMY_PERSONS = [
   { id: "d1", name: "Jambula Chandraiah", birthDate: "1922", role: "Head of Family", gender: "male", description: "The patriarch of the family.", photoUrl: "https://picsum.photos/seed/chandraiah/200/200", isConfirmed: true },
-  { id: "d2", name: "Jambula Laxmamma", birthDate: "1928", role: "Matriarch", gender: "female", description: "The matriarch of the family.", photoUrl: "https://picsum.photos/seed/laxmamma/200/200", isConfirmed: true },
+  { id: "d2", name: "Jambula Laxmamma", birthDate: "1928", role: "Matriarch", gender: "female", description: "The patriarch of the family.", photoUrl: "https://picsum.photos/seed/laxmamma/200/200", isConfirmed: true },
   { id: "d3", name: "Jambula Sreerama Murthy", birthDate: "1956", role: "Son", gender: "male", description: "Elder son of Chandraiah and Laxmamma.", photoUrl: "https://picsum.photos/seed/murthy/200/200", isConfirmed: true },
   { id: "d4", name: "Jambula Latha", birthDate: "1960", role: "Daughter", gender: "female", description: "Daughter of Chandraiah and Laxmamma.", photoUrl: "https://picsum.photos/seed/latha/200/200", email: "latha@example.com", isConfirmed: false },
 ];
@@ -136,8 +136,15 @@ function FamilyTreeContent() {
   const { data: cloudPersons, isLoading: isPersonsLoading } = useCollection(personsQuery);
   const { data: cloudRelationships, isLoading: isRelLoading } = useCollection(relationshipsQuery);
 
-  const displayPersons = user ? (cloudPersons || []) : DUMMY_PERSONS;
-  const displayRelationships = user ? (cloudRelationships || []) : DUMMY_RELATIONSHIPS;
+  const displayPersons = useMemo(() => {
+    if (user) return cloudPersons || EMPTY_ARRAY;
+    return DUMMY_PERSONS;
+  }, [user, cloudPersons]);
+
+  const displayRelationships = useMemo(() => {
+    if (user) return cloudRelationships || EMPTY_ARRAY;
+    return DUMMY_RELATIONSHIPS;
+  }, [user, cloudRelationships]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -173,7 +180,6 @@ function FamilyTreeContent() {
       }));
     }
 
-    const nodeMap = new Map();
     const childrenMap = new Map();
     const spouseMap = new Map();
     const roots = new Set(persons.map(p => p.id));
@@ -232,12 +238,11 @@ function FamilyTreeContent() {
     return calculatedNodes;
   }, [handleEdit, handleDelete]);
 
-  // Use a ref to track if we've already done an initial fitView for a set of data
   const lastDataHash = useRef("");
 
   useEffect(() => {
-    if (displayPersons && displayRelationships) {
-      const currentHash = `${displayPersons.length}-${displayRelationships.length}-${viewMode}`;
+    if (displayPersons.length >= 0 && displayRelationships.length >= 0) {
+      const currentHash = `${displayPersons.length}-${displayRelationships.length}-${viewMode}-${displayPersons.map(p => p.id).join(',')}`;
       
       const newNodes = layoutNodes(displayPersons, displayRelationships, viewMode);
       setNodes(newNodes);
@@ -261,16 +266,12 @@ function FamilyTreeContent() {
       
       if (lastDataHash.current !== currentHash) {
         lastDataHash.current = currentHash;
-        // fitView should be called after a short delay to allow React Flow to process nodes
         setTimeout(() => {
           fitView({ padding: 0.2, duration: 800 });
-        }, 100);
+        }, 150);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displayPersons, displayRelationships, viewMode, layoutNodes]); 
-  // We explicitly exclude setNodes, setEdges, and fitView from deps to avoid instability loops.
-  // These are assumed stable or managed manually within the effect.
+  }, [displayPersons, displayRelationships, viewMode, layoutNodes, setNodes, setEdges, fitView]);
 
   const onConnect = useCallback(
     (params: Connection) => {
@@ -584,7 +585,6 @@ function FamilyTreeContent() {
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             nodeTypes={nodeTypes}
-            fitView
             className="bg-dot-pattern"
           >
             <Background color="hsl(var(--muted-foreground))" gap={20} size={1} opacity={0.1} />
@@ -784,11 +784,11 @@ function FamilyTreeContent() {
                 <Code className="h-3 w-3" />
                 Required JSON Structure
               </Label>
-              <ScrollArea className="h-48 w-full rounded-md border bg-slate-950 p-4">
+              <div className="h-48 w-full rounded-md border bg-slate-950 p-4 overflow-auto">
                 <pre className="text-xs text-blue-400 font-mono">
                   {JSON.stringify(JSON_TEMPLATE, null, 2)}
                 </pre>
-              </ScrollArea>
+              </div>
             </div>
 
             <div className="border-2 border-dashed border-muted rounded-xl p-8 flex flex-col items-center justify-center gap-4 hover:border-primary/50 transition-colors bg-secondary/5">
