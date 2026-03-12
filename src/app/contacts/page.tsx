@@ -4,7 +4,7 @@
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Heart, Mail, MapPin, Compass, Github, Twitter } from "lucide-react";
+import { Heart, Mail, MapPin, Compass, Github, Twitter, ShieldCheck } from "lucide-react";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 
 export default function ContactsPage() {
@@ -13,14 +13,14 @@ export default function ContactsPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-1000">
       <Card className="overflow-hidden border-none shadow-2xl rounded-[2rem] bg-background/50 backdrop-blur">
-        <div className="relative h-[400px] w-full">
+        <div className="relative h-[450px] w-full">
           <Image 
             src={heroImage} 
             alt="Dhileepudu" 
             fill 
             className="object-cover"
             priority
-            data-ai-hint="man horseback dog"
+            data-ai-hint="man lungi horseback"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
           <div className="absolute bottom-8 left-8">
@@ -55,13 +55,13 @@ export default function ContactsPage() {
             <div className="space-y-6 bg-secondary/20 p-6 rounded-2xl border border-dashed">
               <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Get in touch</h3>
               <div className="flex flex-col gap-4">
-                <a href="#" className="flex items-center gap-3 text-sm font-semibold hover:text-primary transition-colors">
+                <a href="mailto:dhileep@homillu.com" className="flex items-center gap-3 text-sm font-semibold hover:text-primary transition-colors">
                   <Mail className="h-5 w-5" /> dhileep@homillu.com
                 </a>
-                <a href="#" className="flex items-center gap-3 text-sm font-semibold hover:text-primary transition-colors">
+                <a href="https://github.com/dhileepudu" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-sm font-semibold hover:text-primary transition-colors">
                   <Github className="h-5 w-5" /> @dhileepudu
                 </a>
-                <a href="#" className="flex items-center gap-3 text-sm font-semibold hover:text-primary transition-colors">
+                <a href="https://twitter.com/dhileepudu" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-sm font-semibold hover:text-primary transition-colors">
                   <Twitter className="h-5 w-5" /> @dhileepudu
                 </a>
               </div>
@@ -70,7 +70,7 @@ export default function ContactsPage() {
         </CardContent>
       </Card>
 
-      <div className="grid md:grid-cols-3 gap-6 opacity-80">
+      <div className="grid md:grid-cols-3 gap-6 opacity-80 pb-12">
         <Card className="bg-card/50 border-muted/50 p-6 flex flex-col items-center text-center gap-4">
           <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
             <Compass className="h-6 w-6 text-primary" />
@@ -100,11 +100,5 @@ export default function ContactsPage() {
         </Card>
       </div>
     </div>
-  );
-}
-
-function ShieldCheck({ className }: { className?: string }) {
-  return (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
   );
 }
