@@ -1,6 +1,7 @@
+
 "use client"
 
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { 
   ReactFlow, 
@@ -105,7 +106,7 @@ function FamilyTreeContent() {
   const [uploadedJson, setUploadedJson] = useState<any>(null);
   const [viewMode, setViewMode] = useState<"free" | "org">("org");
   
-  const initialPersonState: Partial<Person & { relatedToId?: string, relationType?: string }> = { 
+  const initialPersonState: Partial<Person & { relatedToId?: string, relationType?: string }> = useMemo(() => ({ 
     name: "", 
     email: "",
     isConfirmed: false,
@@ -116,7 +117,7 @@ function FamilyTreeContent() {
     relatedToId: "",
     relationType: "parent-child",
     photoUrl: ""
-  };
+  }), []);
 
   const [personForm, setPersonForm] = useState<Partial<Person & { relatedToId?: string, relationType?: string }>>(initialPersonState);
 
@@ -142,7 +143,7 @@ function FamilyTreeContent() {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
   const handleEdit = useCallback((person: Person) => {
-    if (!user || person.id.startsWith("d")) {
+    if (!person.id || person.id.startsWith("d")) {
       toast({ title: "Preview Mode", description: "Sign in to edit family profiles." });
       return;
     }
@@ -150,7 +151,7 @@ function FamilyTreeContent() {
     setImagePreview(person.photoUrl || null);
     setIsEditMode(true);
     setIsDialogOpen(true);
-  }, [user, toast]);
+  }, [toast]);
 
   const handleDelete = useCallback((personId: string) => {
     if (!user || personId.startsWith("d")) {
@@ -231,8 +232,13 @@ function FamilyTreeContent() {
     return calculatedNodes;
   }, [handleEdit, handleDelete]);
 
+  // Use a ref to track if we've already done an initial fitView for a set of data
+  const lastDataHash = useRef("");
+
   useEffect(() => {
-    if (displayPersons) {
+    if (displayPersons && displayRelationships) {
+      const currentHash = `${displayPersons.length}-${displayRelationships.length}-${viewMode}`;
+      
       const newNodes = layoutNodes(displayPersons, displayRelationships, viewMode);
       setNodes(newNodes);
       
@@ -253,9 +259,18 @@ function FamilyTreeContent() {
       });
       setEdges(newEdges);
       
-      setTimeout(() => fitView({ padding: 0.2, duration: 800 }), 100);
+      if (lastDataHash.current !== currentHash) {
+        lastDataHash.current = currentHash;
+        // fitView should be called after a short delay to allow React Flow to process nodes
+        setTimeout(() => {
+          fitView({ padding: 0.2, duration: 800 });
+        }, 100);
+      }
     }
-  }, [displayPersons, displayRelationships, viewMode, setNodes, setEdges, layoutNodes, fitView]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayPersons, displayRelationships, viewMode, layoutNodes]); 
+  // We explicitly exclude setNodes, setEdges, and fitView from deps to avoid instability loops.
+  // These are assumed stable or managed manually within the effect.
 
   const onConnect = useCallback(
     (params: Connection) => {
@@ -492,11 +507,11 @@ function FamilyTreeContent() {
     }
   };
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setIsEditMode(false);
     setImagePreview(null);
     setPersonForm(initialPersonState);
-  };
+  }, [initialPersonState]);
 
   return (
     <div className="h-[calc(100vh-140px)] flex flex-col space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
