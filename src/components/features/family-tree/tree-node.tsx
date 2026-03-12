@@ -4,12 +4,13 @@
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { User, Users, Sparkles, MessageSquare, Pencil, Trash2 } from "lucide-react";
+import { User, Users, Sparkles, MessageSquare, Pencil, Trash2, CheckCircle2, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { generateFamilyTreeDescription } from "@/ai/flows/generate-family-tree-description";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Handle, Position } from "@xyflow/react";
+import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
   TooltipContent,
@@ -20,6 +21,8 @@ import {
 export interface Person {
   id: string;
   name: string;
+  email?: string;
+  isConfirmed?: boolean;
   photoUrl?: string;
   birthDate: string;
   deathDate?: string;
@@ -116,18 +119,25 @@ export function TreeNode({ data }: TreeNodeProps) {
                   </AvatarFallback>
                 </Avatar>
                 {GenderIcon}
+                {person.isConfirmed && (
+                  <div className="absolute -bottom-1 -right-1 bg-green-500 text-white rounded-full p-1 shadow-md border-2 border-white" title="Consent Confirmed">
+                    <CheckCircle2 className="h-3 w-3" />
+                  </div>
+                )}
               </div>
               
               <div className="text-center overflow-hidden w-full">
                 <h3 className="font-bold text-base leading-tight truncate px-1">{person.name}</h3>
-                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">
-                  {person.role || "Member"}
-                </p>
-                {person.birthDate && (
-                  <p className="text-[9px] text-muted-foreground mt-0.5">
-                    {person.birthDate}
+                <div className="flex flex-col gap-1 mt-1">
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+                    {person.role || "Member"}
                   </p>
-                )}
+                  {person.email && !person.isConfirmed && (
+                    <Badge variant="secondary" className="text-[8px] h-4 gap-1 px-1.5 mx-auto font-black uppercase tracking-tighter">
+                      <Clock className="h-2 w-2" /> Pending
+                    </Badge>
+                  )}
+                </div>
               </div>
 
               <div className="flex justify-center gap-1 mt-2">
@@ -154,6 +164,11 @@ export function TreeNode({ data }: TreeNodeProps) {
                 <MessageSquare className="h-3.5 w-3.5" />
                 About {person.name.split(' ')[0]}
               </p>
+              {person.email && (
+                <p className="text-[10px] font-bold text-muted-foreground break-all bg-muted p-1 rounded">
+                  {person.email}
+                </p>
+              )}
               <p className="text-xs text-muted-foreground leading-relaxed">
                 {person.description || "No description provided yet."}
               </p>

@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserProfile": {
@@ -279,6 +280,15 @@
         "name": {
           "type": "string",
           "description": "The full name of the family member."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the family member for consent and collaboration.",
+          "format": "email"
+        },
+        "isConfirmed": {
+          "type": "boolean",
+          "description": "Whether the family member has confirmed their participation in the digital family hub."
         },
         "photoUrl": {
           "type": "string",

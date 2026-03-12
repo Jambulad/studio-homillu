@@ -20,12 +20,13 @@ import "@xyflow/react/dist/style.css";
 
 import { TreeNode, Person } from "@/components/features/family-tree/tree-node";
 import { Button } from "@/components/ui/button";
-import { Plus, GitBranch, Share2, Info, Loader2, Camera, Database, Trash2, CloudUpload, FileJson, Code } from "lucide-react";
+import { Plus, GitBranch, Share2, Info, Loader2, Camera, Database, Trash2, CloudUpload, FileJson, Code, Mail } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Switch } from "@/components/ui/switch";
 import { 
   Select, 
   SelectContent, 
@@ -38,6 +39,7 @@ import { collection, serverTimestamp, doc, addDoc, setDoc } from "firebase/fires
 import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { sendFamilyInvitation } from "@/ai/flows/send-family-invitation";
 
 const nodeTypes = {
   familyMember: TreeNode,
@@ -59,10 +61,10 @@ const JSON_TEMPLATE = {
 };
 
 const DUMMY_PERSONS = [
-  { id: "d1", name: "Jambula Chandraiah", birthDate: "1922", role: "Head of Family", gender: "male", description: "The patriarch of the family.", photoUrl: "https://picsum.photos/seed/chandraiah/200/200" },
-  { id: "d2", name: "Jambula Laxmamma", birthDate: "1928", role: "Matriarch", gender: "female", description: "The matriarch of the family.", photoUrl: "https://picsum.photos/seed/laxmamma/200/200" },
-  { id: "d3", name: "Jambula Sreerama Murthy", birthDate: "1956", role: "Son", gender: "male", description: "Elder son of Chandraiah and Laxmamma.", photoUrl: "https://picsum.photos/seed/murthy/200/200" },
-  { id: "d4", name: "Jambula Latha", birthDate: "1960", role: "Daughter", gender: "female", description: "Daughter of Chandraiah and Laxmamma.", photoUrl: "https://picsum.photos/seed/latha/200/200" },
+  { id: "d1", name: "Jambula Chandraiah", birthDate: "1922", role: "Head of Family", gender: "male", description: "The patriarch of the family.", photoUrl: "https://picsum.photos/seed/chandraiah/200/200", isConfirmed: true },
+  { id: "d2", name: "Jambula Laxmamma", birthDate: "1928", role: "Matriarch", gender: "female", description: "The matriarch of the family.", photoUrl: "https://picsum.photos/seed/laxmamma/200/200", isConfirmed: true },
+  { id: "d3", name: "Jambula Sreerama Murthy", birthDate: "1956", role: "Son", gender: "male", description: "Elder son of Chandraiah and Laxmamma.", photoUrl: "https://picsum.photos/seed/murthy/200/200", isConfirmed: true },
+  { id: "d4", name: "Jambula Latha", birthDate: "1960", role: "Daughter", gender: "female", description: "Daughter of Chandraiah and Laxmamma.", photoUrl: "https://picsum.photos/seed/latha/200/200", email: "latha@example.com", isConfirmed: false },
 ];
 
 const DUMMY_RELATIONSHIPS = [
@@ -80,12 +82,15 @@ export default function FamilyTreePage() {
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isInviting, setIsInviting] = useState(false);
   const [importStep, setImportStep] = useState("");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadedJson, setUploadedJson] = useState<any>(null);
   
   const initialPersonState: Partial<Person & { relatedToId?: string, relationType?: string }> = { 
     name: "", 
+    email: "",
+    isConfirmed: false,
     birthDate: "", 
     gender: "male",
     role: "Member",
@@ -244,6 +249,8 @@ export default function FamilyTreePage() {
     const personData = {
       householdId,
       name: personForm.name,
+      email: personForm.email || "",
+      isConfirmed: personForm.isConfirmed || false,
       birthDate: personForm.birthDate || "",
       gender: personForm.gender,
       role: personForm.role,
@@ -253,35 +260,56 @@ export default function FamilyTreePage() {
       householdMembers: { [user.uid]: "admin" }
     };
 
-    if (isEditMode && personForm.id) {
-      const personRef = doc(firestore, "households", householdId, "persons", personForm.id);
-      updateDocumentNonBlocking(personRef, personData);
-      toast({ title: "Profile updated" });
-    } else {
-      const personsRef = collection(firestore, "households", householdId, "persons");
-      const docRef = await addDoc(personsRef, {
-        ...personData,
-        createdAt: serverTimestamp(),
-        createdByUserId: user.uid,
-      });
-
-      if (personForm.relatedToId && personForm.relationType) {
-        const relRef = collection(firestore, "households", householdId, "relationships");
-        addDocumentNonBlocking(relRef, {
-          householdId,
-          person1Id: personForm.relationType === "parent-child" ? personForm.relatedToId : docRef.id,
-          person2Id: personForm.relationType === "parent-child" ? docRef.id : personForm.relatedToId,
-          type: personForm.relationType,
+    try {
+      if (isEditMode && personForm.id) {
+        const personRef = doc(firestore, "households", householdId, "persons", personForm.id);
+        updateDocumentNonBlocking(personRef, personData);
+        toast({ title: "Profile updated" });
+      } else {
+        const personsRef = collection(firestore, "households", householdId, "persons");
+        const docRef = await addDoc(personsRef, {
+          ...personData,
           createdAt: serverTimestamp(),
           createdByUserId: user.uid,
-          householdMembers: { [user.uid]: "admin" }
         });
-      }
-      toast({ title: "Member added" });
-    }
 
-    setIsDialogOpen(false);
-    resetForm();
+        if (personForm.relatedToId && personForm.relationType) {
+          const relRef = collection(firestore, "households", householdId, "relationships");
+          addDocumentNonBlocking(relRef, {
+            householdId,
+            person1Id: personForm.relationType === "parent-child" ? personForm.relatedToId : docRef.id,
+            person2Id: personForm.relationType === "parent-child" ? docRef.id : personForm.relatedToId,
+            type: personForm.relationType,
+            createdAt: serverTimestamp(),
+            createdByUserId: user.uid,
+            householdMembers: { [user.uid]: "admin" }
+          });
+        }
+        
+        // Trigger Invitation Flow
+        if (personForm.email && personForm.email.trim() !== "") {
+          setIsInviting(true);
+          await sendFamilyInvitation({
+            personName: personForm.name,
+            invitedBy: user.displayName || "A Family Member",
+            householdName: `${user.displayName}'s Family`,
+            email: personForm.email
+          });
+          toast({
+            title: "Invitation Sent",
+            description: `A consent email has been simulated for ${personForm.name}.`,
+          });
+        }
+        
+        toast({ title: "Member added" });
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsInviting(false);
+      setIsDialogOpen(false);
+      resetForm();
+    }
   };
 
   const handleBulkImport = async () => {
@@ -317,6 +345,7 @@ export default function FamilyTreePage() {
           description: node.description || "",
           gender: "male", 
           role: "Family Member",
+          isConfirmed: false,
           photoUrl: `https://picsum.photos/seed/${node.fname}/200/200`,
           createdAt: serverTimestamp(),
           createdByUserId: user.uid,
@@ -352,6 +381,7 @@ export default function FamilyTreePage() {
               description: node.spouseDescription || "",
               gender: spouseLabel === "Wife" ? "female" : "male",
               role: spouseLabel,
+              isConfirmed: false,
               photoUrl: `https://picsum.photos/seed/${spouseName}/200/200`,
               createdAt: serverTimestamp(),
               createdByUserId: user.uid,
@@ -471,10 +501,6 @@ export default function FamilyTreePage() {
                 <div className="w-4 h-0.5 bg-accent border-dashed border-t" />
                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Marriage</span>
               </div>
-              <div className="flex items-center gap-2 ml-4 text-xs text-muted-foreground italic border-l pl-4">
-                <Info className="h-3.5 w-3.5" />
-                Drag nodes to reorganize
-              </div>
             </Panel>
           </ReactFlow>
         )}
@@ -512,7 +538,6 @@ export default function FamilyTreePage() {
                   onChange={handleImageChange}
                 />
               </div>
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Profile Picture (Max 1MB)</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -536,6 +561,33 @@ export default function FamilyTreePage() {
                   className="bg-secondary/20"
                 />
               </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <Mail className="h-3 w-3" />
+                Invitation Email
+              </Label>
+              <Input 
+                id="email" 
+                type="email"
+                value={personForm.email} 
+                onChange={(e) => setPersonForm({...personForm, email: e.target.value})} 
+                placeholder="Consent required for hub access" 
+                className="bg-secondary/20"
+              />
+              <p className="text-[10px] text-muted-foreground italic">AI will send a consent email to this address.</p>
+            </div>
+
+            <div className="flex items-center justify-between p-3 bg-secondary/10 rounded-lg border border-dashed">
+              <div className="space-y-0.5">
+                <Label className="text-xs font-bold uppercase tracking-wider">Has Confirmed?</Label>
+                <p className="text-[10px] text-muted-foreground">Manually verify consent status</p>
+              </div>
+              <Switch 
+                checked={personForm.isConfirmed} 
+                onCheckedChange={(checked) => setPersonForm({...personForm, isConfirmed: checked})}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -607,7 +659,8 @@ export default function FamilyTreePage() {
             )}
           </div>
           <DialogFooter className="pt-4 border-t">
-            <Button onClick={handleSave} className="w-full sm:w-auto font-bold px-8 py-6 text-lg">
+            <Button onClick={handleSave} disabled={isInviting} className="w-full sm:w-auto font-bold px-8 py-6 text-lg gap-2">
+              {isInviting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {isEditMode ? "Update Profile" : t("common.add")}
             </Button>
           </DialogFooter>
