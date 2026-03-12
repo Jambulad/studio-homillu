@@ -1,6 +1,7 @@
+
 "use client"
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,9 @@ import {
   Plus,
   ArrowRight,
   Sparkles,
-  Loader2
+  Loader2,
+  Cake,
+  TrendingUp
 } from "lucide-react";
 import { 
   Dialog, 
@@ -31,6 +34,7 @@ import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebas
 import { collection, serverTimestamp, doc } from "firebase/firestore";
 import { addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { useToast } from "@/hooks/use-toast";
+import { differenceInDays, setYear, isAfter, startOfToday, isValid } from "date-fns";
 
 const DUMMY_MOMENTS = [
   { id: "d1", title: "Summer Road Trip", date: "2024-07-15", category: "milestone", description: "First family trip to the mountains" },
@@ -53,9 +57,59 @@ export default function MomentsPage() {
     return collection(firestore, "households", householdId, "moments");
   }, [firestore, user, householdId]);
 
-  const { data: cloudMoments, isLoading } = useCollection(momentsQuery);
+  const personsQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, "households", householdId, "persons");
+  }, [firestore, user, householdId]);
 
-  const displayMoments = user ? cloudMoments : DUMMY_MOMENTS;
+  const { data: cloudMoments, isLoading: isMomentsLoading } = useCollection(momentsQuery);
+  const { data: cloudPersons } = useCollection(personsQuery);
+
+  const upcomingBirthdays = useMemo(() => {
+    if (!cloudPersons) return [];
+    const today = startOfToday();
+    
+    return cloudPersons
+      .filter(p => p.birthDate)
+      .map(p => {
+        const bdayStr = p.birthDate;
+        let originalDate: Date | null = null;
+        
+        if (bdayStr.length === 4) {
+          originalDate = null;
+        } else {
+          const parsed = new Date(bdayStr);
+          if (isValid(parsed)) originalDate = parsed;
+        }
+
+        if (!originalDate) return null;
+
+        // Calculate next birthday date
+        let nextBday = setYear(originalDate, today.getFullYear());
+        if (isAfter(today, nextBday)) {
+          nextBday = setYear(originalDate, today.getFullYear() + 1);
+        }
+
+        const daysUntil = differenceInDays(nextBday, today);
+
+        return {
+          id: `bday-${p.id}`,
+          title: `${p.name}'s Birthday`,
+          date: nextBday.toISOString().split('T')[0],
+          category: "birthday",
+          description: `Turning ${nextBday.getFullYear() - originalDate.getFullYear()}`,
+          daysUntil,
+          isBirthday: true
+        };
+      })
+      .filter((b): b is any => b !== null && b.daysUntil <= 30) // Only birthdays in next 30 days
+      .sort((a, b) => a.daysUntil - b.daysUntil);
+  }, [cloudPersons]);
+
+  const displayMoments = useMemo(() => {
+    const base = user ? (cloudMoments || []) : DUMMY_MOMENTS;
+    return [...base, ...upcomingBirthdays];
+  }, [user, cloudMoments, upcomingBirthdays]);
 
   const handleAddMoment = () => {
     if (!user) {
@@ -82,7 +136,7 @@ export default function MomentsPage() {
   };
 
   const deleteMoment = (momentId: string) => {
-    if (!user || momentId.startsWith("d")) return;
+    if (!user || momentId.startsWith("d") || momentId.startsWith("bday")) return;
     const momentRef = doc(firestore, "households", householdId, "moments", momentId);
     deleteDocumentNonBlocking(momentRef);
   };
@@ -100,6 +154,7 @@ export default function MomentsPage() {
       case "milestone": return <Heart className="h-4 w-4 text-pink-500" />;
       case "maintenance": return <Car className="h-4 w-4 text-primary" />;
       case "countdown": return <Clock className="h-4 w-4 text-accent" />;
+      case "birthday": return <Cake className="h-4 w-4 text-pink-600" />;
       default: return <Camera className="h-4 w-4" />;
     }
   };
@@ -172,25 +227,52 @@ export default function MomentsPage() {
         </div>
       )}
 
-      {isLoading ? (
+      {upcomingBirthdays.length > 0 && (
+        <div className="bg-pink-500/5 border border-pink-500/10 p-6 rounded-3xl">
+          <h2 className="text-xl font-bold flex items-center gap-2 mb-4 text-pink-600">
+            <TrendingUp className="h-5 w-5" />
+            Nearing Family Birthdays
+          </h2>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {upcomingBirthdays.map(b => (
+              <Card key={b.id} className="border-pink-200 dark:border-pink-900 bg-card/50">
+                <CardContent className="p-4 flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-full bg-pink-100 dark:bg-pink-900/50 flex items-center justify-center">
+                    <Cake className="h-6 w-6 text-pink-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm">{b.title}</h4>
+                    <p className="text-xs text-muted-foreground">{b.daysUntil} days to go</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {isMomentsLoading ? (
         <div className="flex justify-center p-12">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {displayMoments?.map((moment: any) => {
-            const daysLeft = getDaysUntil(moment.date);
+            const daysLeft = moment.daysUntil ?? getDaysUntil(moment.date);
             const isPast = daysLeft < 0;
 
             return (
-              <Card key={moment.id} className="group hover:shadow-md transition-all border-muted/50 overflow-hidden">
+              <Card key={moment.id} className={cn(
+                "group hover:shadow-md transition-all border-muted/50 overflow-hidden",
+                moment.isBirthday && "border-pink-500/20 bg-pink-50/5 dark:bg-pink-900/5"
+              )}>
                 <CardHeader className="pb-2">
                   <div className="flex justify-between items-start">
                     <Badge variant="secondary" className="gap-1.5 px-2">
                       {getCategoryIcon(moment.category)}
                       <span className="capitalize">{moment.category}</span>
                     </Badge>
-                    {user && !moment.id.startsWith("d") && (
+                    {user && !moment.id.startsWith("d") && !moment.isBirthday && (
                       <Button 
                         variant="ghost" 
                         size="icon" 
@@ -208,18 +290,24 @@ export default function MomentsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {moment.category === "countdown" && !isPast && (
-                    <div className="mt-2 p-4 bg-primary/5 rounded-xl border border-primary/10">
+                  {(moment.category === "countdown" || moment.category === "birthday") && !isPast && (
+                    <div className={cn(
+                      "mt-2 p-4 rounded-xl border",
+                      moment.isBirthday ? "bg-pink-500/5 border-pink-500/10" : "bg-primary/5 border-primary/10"
+                    )}>
                       <div className="flex items-center justify-between">
                         <div className="text-center flex-1">
-                          <span className="text-3xl font-bold text-primary">{daysLeft}</span>
+                          <span className={cn(
+                            "text-3xl font-bold",
+                            moment.isBirthday ? "text-pink-600" : "text-primary"
+                          )}>{daysLeft}</span>
                           <p className="text-xs text-muted-foreground font-medium uppercase tracking-tighter">
                             {t("moments.daysUntil")}
                           </p>
                         </div>
-                        <ArrowRight className="h-5 w-5 text-primary/30" />
+                        <ArrowRight className="h-5 w-5 opacity-30" />
                         <div className="flex-1 text-center">
-                          <Sparkles className="h-8 w-8 text-accent mx-auto mb-1" />
+                          {moment.isBirthday ? <Cake className="h-8 w-8 text-pink-400 mx-auto mb-1" /> : <Sparkles className="h-8 w-8 text-accent mx-auto mb-1" />}
                         </div>
                       </div>
                     </div>
@@ -236,6 +324,12 @@ export default function MomentsPage() {
                   {moment.category === "milestone" && (
                     <p className="mt-2 text-sm text-muted-foreground italic">
                       "{moment.description || "A beautiful memory captured in time."}"
+                    </p>
+                  )}
+                  {moment.isBirthday && (
+                    <p className="mt-2 text-sm text-pink-600 font-bold flex items-center gap-2">
+                      <Sparkles className="h-3 w-3" />
+                      {moment.description}
                     </p>
                   )}
                 </CardContent>

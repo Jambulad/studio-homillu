@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { format, isSameDay, addHours, startOfToday, startOfMonth, endOfMonth, eachDayOfInterval, addDays, subMonths, addMonths } from "date-fns";
+import { format, isSameDay, addHours, startOfToday, startOfMonth, endOfMonth, eachDayOfInterval, addDays, subMonths, addMonths, setYear, parseISO, isValid } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +23,8 @@ import {
   Sparkles,
   Zap,
   Star,
-  Compass
+  Compass,
+  Cake
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -40,7 +41,7 @@ const DUMMY_EVENTS = [
 ];
 
 export default function CalendarPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const firestore = useFirestore();
   const { user } = useUser();
   const { toast } = useToast();
@@ -62,9 +63,55 @@ export default function CalendarPage() {
     return collection(firestore, "households", householdId, "calendarEvents");
   }, [firestore, user, householdId]);
 
-  const { data: cloudEvents, isLoading } = useCollection(eventsQuery);
+  const personsQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, "households", householdId, "persons");
+  }, [firestore, user, householdId]);
 
-  const displayEvents = user ? cloudEvents : DUMMY_EVENTS;
+  const { data: cloudEvents, isLoading } = useCollection(eventsQuery);
+  const { data: cloudPersons } = useCollection(personsQuery);
+
+  const birthdays = useMemo(() => {
+    if (!cloudPersons) return [];
+    return cloudPersons
+      .filter(p => p.birthDate)
+      .map(p => {
+        const bdayStr = p.birthDate;
+        let date: Date | null = null;
+        
+        // Try to parse common formats
+        if (bdayStr.length === 4) { // Only year
+          date = null;
+        } else {
+          const parsed = new Date(bdayStr);
+          if (isValid(parsed)) date = parsed;
+        }
+
+        if (!date) return null;
+
+        return {
+          id: `bday-${p.id}`,
+          title: `${p.name}'s Birthday`,
+          isBirthday: true,
+          originalDate: date,
+          location: "Family Hub",
+          description: `Celebrating ${p.name}'s special day!`,
+        };
+      })
+      .filter((b): b is any => b !== null);
+  }, [cloudPersons]);
+
+  const displayEvents = useMemo(() => {
+    const base = user ? (cloudEvents || []) : DUMMY_EVENTS;
+    
+    // Create virtual instances of birthdays for the visible range (current month)
+    const currentMonthBirthdays = birthdays.map(b => {
+      const bdayThisYear = setYear(b.originalDate, currentViewDate.getFullYear());
+      return { ...b, startDateTime: bdayThisYear };
+    });
+
+    return [...base, ...currentMonthBirthdays];
+  }, [user, cloudEvents, birthdays, currentViewDate]);
 
   const currentMonthStart = startOfMonth(currentViewDate);
   const currentMonthEnd = endOfMonth(currentViewDate);
@@ -79,9 +126,9 @@ export default function CalendarPage() {
   }, [selectedDate, displayEvents]);
 
   const moonInfo = getMoonPhase(selectedDate);
-  const tithi = getTithi(selectedDate);
-  const nakshatra = getNakshatra(selectedDate);
-  const raasi = getRaasi(selectedDate);
+  const tithi = getTithi(selectedDate, i18n.language as "en" | "te");
+  const nakshatra = getNakshatra(selectedDate, i18n.language as "en" | "te");
+  const raasi = getRaasi(selectedDate, i18n.language as "en" | "te");
   const rahukalam = getRahukalam(selectedDate);
 
   const handleAddEvent = () => {
@@ -111,7 +158,7 @@ export default function CalendarPage() {
   };
 
   const deleteEvent = (eventId: string) => {
-    if (!user || eventId.startsWith("d")) return;
+    if (!user || eventId.startsWith("d") || eventId.startsWith("bday")) return;
     const eventRef = doc(firestore, "households", householdId, "calendarEvents", eventId);
     deleteDocumentNonBlocking(eventRef);
     toast({ title: "Event removed" });
@@ -272,8 +319,8 @@ export default function CalendarPage() {
                       <span className="text-xs font-bold">{format(date, "d")}</span>
                       {dayEvents && dayEvents.length > 0 && (
                         <div className="flex gap-0.5">
-                          {dayEvents.slice(0, 3).map((_, i) => (
-                            <div key={i} className={cn("h-1.5 w-1.5 rounded-full", isSelected ? "bg-white" : "bg-primary")} />
+                          {dayEvents.slice(0, 3).map((e, i) => (
+                            <div key={i} className={cn("h-1.5 w-1.5 rounded-full", isSelected ? "bg-white" : e.isBirthday ? "bg-pink-500" : "bg-primary")} />
                           ))}
                         </div>
                       )}
@@ -345,17 +392,31 @@ export default function CalendarPage() {
                         return (
                           <div 
                             key={event.id} 
-                            className="p-4 rounded-xl border bg-card hover:border-primary/50 transition-all group relative overflow-hidden"
+                            className={cn(
+                              "p-4 rounded-xl border bg-card hover:border-primary/50 transition-all group relative overflow-hidden",
+                              event.isBirthday && "border-pink-500/30 bg-pink-50/10 dark:bg-pink-900/10"
+                            )}
                           >
-                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/20 group-hover:bg-primary transition-colors" />
+                            <div className={cn(
+                              "absolute left-0 top-0 bottom-0 w-1 bg-primary/20 group-hover:bg-primary transition-colors",
+                              event.isBirthday && "bg-pink-500"
+                            )} />
                             <div className="flex justify-between items-start">
                               <div className="flex-1">
-                                <h4 className="font-bold text-md leading-tight group-hover:text-primary transition-colors">{event.title}</h4>
+                                <h4 className={cn(
+                                  "font-bold text-md leading-tight group-hover:text-primary transition-colors flex items-center gap-2",
+                                  event.isBirthday && "text-pink-600 dark:text-pink-400"
+                                )}>
+                                  {event.isBirthday && <Cake className="h-4 w-4" />}
+                                  {event.title}
+                                </h4>
                                 <div className="flex flex-col gap-1 mt-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                                  <span className="flex items-center gap-1.5">
-                                    <Clock className="h-3 w-3" />
-                                    {format(eventDate, "p")}
-                                  </span>
+                                  {!event.isBirthday && (
+                                    <span className="flex items-center gap-1.5">
+                                      <Clock className="h-3 w-3" />
+                                      {format(eventDate, "p")}
+                                    </span>
+                                  )}
                                   {event.location && (
                                     <span className="flex items-center gap-1.5">
                                       <MapPin className="h-3 w-3" />
@@ -364,7 +425,7 @@ export default function CalendarPage() {
                                   )}
                                 </div>
                               </div>
-                              {user && !event.id.startsWith("d") && (
+                              {user && !event.id.startsWith("d") && !event.isBirthday && (
                                 <Button 
                                   variant="ghost" 
                                   size="icon" 
