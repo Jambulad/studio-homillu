@@ -27,9 +27,9 @@
     },
     {
       "id": "dhileepudu-hero",
-      "description": "Dhileepudu on horseback with a black dog",
+      "description": "Dhileepudu on horseback with a black dog in the South Indian countryside",
       "imageUrl": "https://picsum.photos/seed/dhileepudu-countryside/1200/600",
-      "imageHint": "man lungi horseback"
+      "imageHint": "man lungi horseback dog"
     }
   ]
 }

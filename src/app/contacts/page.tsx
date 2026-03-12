@@ -8,61 +8,74 @@ import { Heart, Mail, MapPin, Compass, Github, Twitter, ShieldCheck } from "luci
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 
 export default function ContactsPage() {
-  const heroImage = PlaceHolderImages.find(img => img.id === "dhileepudu-hero")?.imageUrl || "https://picsum.photos/seed/dhileepudu/1200/600";
+  const heroImageData = PlaceHolderImages.find(img => img.id === "dhileepudu-hero");
+  const heroImage = heroImageData?.imageUrl || "https://picsum.photos/seed/dhileepudu/1200/600";
+  const imageHint = heroImageData?.imageHint || "man lungi horseback dog";
 
   return (
     <div className="max-w-4xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-      <Card className="overflow-hidden border-none shadow-2xl rounded-[2rem] bg-background/50 backdrop-blur">
-        <div className="relative h-[450px] w-full">
+      <Card className="overflow-hidden border-none shadow-2xl rounded-[2.5rem] bg-background/50 backdrop-blur">
+        <div className="relative h-[500px] w-full">
           <Image 
             src={heroImage} 
             alt="Dhileepudu" 
             fill 
             className="object-cover"
             priority
-            data-ai-hint="man lungi horseback"
+            data-ai-hint={imageHint}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
-          <div className="absolute bottom-8 left-8">
-            <Badge className="bg-primary/20 text-primary border-primary/20 mb-4 backdrop-blur-md uppercase tracking-[0.3em] px-4 py-1">
-              Developer Profile
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+          <div className="absolute bottom-10 left-10 right-10">
+            <Badge className="bg-primary/20 text-primary border-primary/20 mb-4 backdrop-blur-md uppercase tracking-[0.4em] px-5 py-1.5 text-[10px] font-black">
+              Lead Architect & Daydreamer
             </Badge>
-            <h1 className="text-6xl font-black tracking-tighter text-foreground">
+            <h1 className="text-7xl font-black tracking-tighter text-foreground drop-shadow-sm">
               Dhileepudu
             </h1>
           </div>
         </div>
-        <CardContent className="p-8 md:p-12 space-y-8">
-          <div className="grid md:grid-cols-[1fr_250px] gap-12">
-            <div className="space-y-6">
-              <h2 className="text-3xl font-bold text-primary flex items-center gap-3">
-                <Compass className="h-8 w-8" />
-                Who am I?
-              </h2>
-              <p className="text-xl md:text-2xl leading-relaxed font-medium text-muted-foreground italic">
-                "A South Indian daydreamer in a lungi, trotting through code and countryside on horseback, with a black dog as my QA team."
-              </p>
-              <div className="flex flex-wrap gap-4 pt-4">
-                <Badge variant="secondary" className="gap-2 px-3 py-1 text-sm">
-                  <MapPin className="h-4 w-4" /> South India
+        <CardContent className="p-10 md:p-16 space-y-10">
+          <div className="grid md:grid-cols-[1fr_300px] gap-16">
+            <div className="space-y-8">
+              <div className="space-y-4">
+                <h2 className="text-4xl font-black text-primary flex items-center gap-4 tracking-tighter">
+                  <Compass className="h-10 w-10" />
+                  The Journey
+                </h2>
+                <p className="text-2xl md:text-3xl leading-snug font-medium text-muted-foreground italic serif">
+                  "A South Indian daydreamer in a lungi, trotting through code and countryside on horseback, with a black dog as my QA team."
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-4">
+                <Badge variant="secondary" className="gap-2 px-4 py-2 text-xs font-bold uppercase tracking-widest border border-primary/10">
+                  <MapPin className="h-4 w-4 text-primary" /> South India
                 </Badge>
-                <Badge variant="secondary" className="gap-2 px-3 py-1 text-sm">
-                  <Heart className="h-4 w-4 text-pink-500" /> Countryside Enthusiast
+                <Badge variant="secondary" className="gap-2 px-4 py-2 text-xs font-bold uppercase tracking-widest border border-accent/10">
+                  <Heart className="h-4 w-4 text-pink-500" /> Rural Heritage
                 </Badge>
               </div>
             </div>
 
-            <div className="space-y-6 bg-secondary/20 p-6 rounded-2xl border border-dashed">
-              <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Get in touch</h3>
-              <div className="flex flex-col gap-4">
-                <a href="mailto:dhileep@homillu.com" className="flex items-center gap-3 text-sm font-semibold hover:text-primary transition-colors">
-                  <Mail className="h-5 w-5" /> dhileep@homillu.com
+            <div className="space-y-8 bg-secondary/30 p-8 rounded-[2rem] border-2 border-dashed border-primary/20">
+              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Connect Digitally</h3>
+              <div className="flex flex-col gap-6">
+                <a href="mailto:dhileep@homillu.com" className="flex items-center gap-4 text-sm font-bold hover:text-primary transition-all hover:translate-x-1 group">
+                  <div className="h-10 w-10 rounded-full bg-background flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+                    <Mail className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
+                  </div>
+                  dhileep@homillu.com
                 </a>
-                <a href="https://github.com/dhileepudu" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-sm font-semibold hover:text-primary transition-colors">
-                  <Github className="h-5 w-5" /> @dhileepudu
+                <a href="https://github.com/dhileepudu" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 text-sm font-bold hover:text-primary transition-all hover:translate-x-1 group">
+                  <div className="h-10 w-10 rounded-full bg-background flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+                    <Github className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
+                  </div>
+                  @dhileepudu
                 </a>
-                <a href="https://twitter.com/dhileepudu" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-sm font-semibold hover:text-primary transition-colors">
-                  <Twitter className="h-5 w-5" /> @dhileepudu
+                <a href="https://twitter.com/dhileepudu" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 text-sm font-bold hover:text-primary transition-all hover:translate-x-1 group">
+                  <div className="h-10 w-10 rounded-full bg-background flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+                    <Twitter className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
+                  </div>
+                  @dhileepudu
                 </a>
               </div>
             </div>
@@ -70,32 +83,32 @@ export default function ContactsPage() {
         </CardContent>
       </Card>
 
-      <div className="grid md:grid-cols-3 gap-6 opacity-80 pb-12">
-        <Card className="bg-card/50 border-muted/50 p-6 flex flex-col items-center text-center gap-4">
-          <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-            <Compass className="h-6 w-6 text-primary" />
+      <div className="grid md:grid-cols-3 gap-8 pb-20">
+        <Card className="bg-card/40 border-primary/10 p-8 flex flex-col items-center text-center gap-5 rounded-[2rem] backdrop-blur-sm">
+          <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center rotate-3 group-hover:rotate-0 transition-transform">
+            <Compass className="h-8 w-8 text-primary" />
           </div>
           <div>
-            <h4 className="font-bold text-sm uppercase tracking-wider mb-1">Code & Lungi</h4>
-            <p className="text-xs text-muted-foreground">Merging modern tech stacks with deep-rooted cultural heritage.</p>
+            <h4 className="font-black text-xs uppercase tracking-[0.2em] mb-2">Code & Culture</h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">Merging cutting-edge NextJS stacks with deep-rooted cultural values.</p>
           </div>
         </Card>
-        <Card className="bg-card/50 border-muted/50 p-6 flex flex-col items-center text-center gap-4">
-          <div className="h-12 w-12 rounded-full bg-accent/10 flex items-center justify-center">
-            <Heart className="h-6 w-6 text-accent" />
+        <Card className="bg-card/40 border-accent/10 p-8 flex flex-col items-center text-center gap-5 rounded-[2rem] backdrop-blur-sm">
+          <div className="h-16 w-16 rounded-2xl bg-accent/10 flex items-center justify-center -rotate-3 group-hover:rotate-0 transition-transform">
+            <Heart className="h-8 w-8 text-accent" />
           </div>
           <div>
-            <h4 className="font-bold text-sm uppercase tracking-wider mb-1">Rural Heart</h4>
-            <p className="text-xs text-muted-foreground">Building digital solutions inspired by the simplicity of countryside life.</p>
+            <h4 className="font-black text-xs uppercase tracking-[0.2em] mb-2">Countryside Tech</h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">Building digital solutions inspired by the quiet strength of rural life.</p>
           </div>
         </Card>
-        <Card className="bg-card/50 border-muted/50 p-6 flex flex-col items-center text-center gap-4">
-          <div className="h-12 w-12 rounded-full bg-teal-500/10 flex items-center justify-center">
-            <ShieldCheck className="h-6 w-6 text-teal-600" />
+        <Card className="bg-card/40 border-teal-500/10 p-8 flex flex-col items-center text-center gap-5 rounded-[2rem] backdrop-blur-sm">
+          <div className="h-16 w-16 rounded-2xl bg-teal-500/10 flex items-center justify-center rotate-6 group-hover:rotate-0 transition-transform">
+            <ShieldCheck className="h-8 w-8 text-teal-600" />
           </div>
           <div>
-            <h4 className="font-bold text-sm uppercase tracking-wider mb-1">Dog Approved</h4>
-            <p className="text-xs text-muted-foreground">Ensuring every feature passes the rigorous 'tail-wag' quality check.</p>
+            <h4 className="font-black text-xs uppercase tracking-[0.2em] mb-2">QA Approved</h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">Every feature is rigorously tested by the finest black dog in South India.</p>
           </div>
         </Card>
       </div>
