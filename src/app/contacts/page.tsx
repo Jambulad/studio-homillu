@@ -8,13 +8,18 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Heart, Compass, ShieldCheck, Mail, Send, Loader2 } from "lucide-react";
+import { Heart, Compass, ShieldCheck, Mail, Send, Loader2, MapPin } from "lucide-react";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { sendContactEmail } from "@/ai/flows/send-contact-email";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const contactSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -101,10 +106,20 @@ export default function ContactsPage() {
                 </p>
               </div>
               <div className="flex flex-wrap gap-4">
-                <Badge variant="secondary" className="gap-2 px-4 py-2 text-xs font-bold uppercase tracking-widest border border-primary/10">
-                  South India
-                </Badge>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="secondary" className="gap-2 px-4 py-2 text-xs font-bold uppercase tracking-widest border border-primary/10 cursor-help">
+                      <MapPin className="h-3 w-3" />
+                      India
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Gunthakallu, India</p>
+                  </TooltipContent>
+                </Tooltip>
+
                 <Badge variant="secondary" className="gap-2 px-4 py-2 text-xs font-bold uppercase tracking-widest border border-accent/10">
+                  <Heart className="h-3 w-3 fill-accent" />
                   Rural Heritage
                 </Badge>
               </div>
