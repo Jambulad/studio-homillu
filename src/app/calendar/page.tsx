@@ -79,12 +79,15 @@ export default function CalendarPage() {
         const bdayStr = p.birthDate;
         let date: Date | null = null;
         
-        // Try to parse common formats
-        if (bdayStr.length === 4) { // Only year
-          date = null;
-        } else {
-          const parsed = new Date(bdayStr);
-          if (isValid(parsed)) date = parsed;
+        // Try to parse partial or full dates (e.g. "Feb 11", "2024-02-11")
+        let parsed = new Date(bdayStr);
+        if (!isValid(parsed) && bdayStr.split(' ').length === 2) {
+          // Try adding a dummy year for "Feb 11" format
+          parsed = new Date(`${bdayStr} 2000`);
+        }
+
+        if (isValid(parsed)) {
+          date = parsed;
         }
 
         if (!date) return null;
@@ -93,7 +96,9 @@ export default function CalendarPage() {
           id: `bday-${p.id}`,
           title: `${p.name}'s Birthday`,
           isBirthday: true,
-          originalDate: date,
+          // Store month and day to recreate annually
+          month: date.getMonth(),
+          day: date.getDate(),
           location: "Family Hub",
           description: `Celebrating ${p.name}'s special day!`,
         };
@@ -105,12 +110,13 @@ export default function CalendarPage() {
     const base = user ? (cloudEvents || []) : DUMMY_EVENTS;
     
     // Create virtual instances of birthdays for the visible range (current month)
-    const currentMonthBirthdays = birthdays.map(b => {
-      const bdayThisYear = setYear(b.originalDate, currentViewDate.getFullYear());
+    const yearBirthdays = birthdays.map(b => {
+      // Recreate the birthday date object in the context of the currently viewed year
+      const bdayThisYear = new Date(currentViewDate.getFullYear(), b.month, b.day);
       return { ...b, startDateTime: bdayThisYear };
     });
 
-    return [...base, ...currentMonthBirthdays];
+    return [...base, ...yearBirthdays];
   }, [user, cloudEvents, birthdays, currentViewDate]);
 
   const currentMonthStart = startOfMonth(currentViewDate);

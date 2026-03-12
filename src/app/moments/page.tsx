@@ -35,6 +35,7 @@ import { collection, serverTimestamp, doc } from "firebase/firestore";
 import { addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { useToast } from "@/hooks/use-toast";
 import { differenceInDays, setYear, isAfter, startOfToday, isValid } from "date-fns";
+import { cn } from "@/lib/utils";
 
 const DUMMY_MOMENTS = [
   { id: "d1", title: "Summer Road Trip", date: "2024-07-15", category: "milestone", description: "First family trip to the mountains" },
@@ -73,21 +74,20 @@ export default function MomentsPage() {
       .filter(p => p.birthDate)
       .map(p => {
         const bdayStr = p.birthDate;
-        let originalDate: Date | null = null;
+        let bdayDate: Date | null = null;
         
-        if (bdayStr.length === 4) {
-          originalDate = null;
-        } else {
-          const parsed = new Date(bdayStr);
-          if (isValid(parsed)) originalDate = parsed;
+        // Handle varying birth date string formats
+        let parsed = new Date(bdayStr);
+        if (!isValid(parsed) && bdayStr.split(' ').length === 2) {
+          parsed = new Date(`${bdayStr} 2000`);
         }
 
-        if (!originalDate) return null;
+        if (!isValid(parsed)) return null;
 
-        // Calculate next birthday date
-        let nextBday = setYear(originalDate, today.getFullYear());
+        // Calculate next birthday date ignoring original year
+        let nextBday = new Date(today.getFullYear(), parsed.getMonth(), parsed.getDate());
         if (isAfter(today, nextBday)) {
-          nextBday = setYear(originalDate, today.getFullYear() + 1);
+          nextBday = new Date(today.getFullYear() + 1, parsed.getMonth(), parsed.getDate());
         }
 
         const daysUntil = differenceInDays(nextBday, today);
@@ -97,7 +97,7 @@ export default function MomentsPage() {
           title: `${p.name}'s Birthday`,
           date: nextBday.toISOString().split('T')[0],
           category: "birthday",
-          description: `Turning ${nextBday.getFullYear() - originalDate.getFullYear()}`,
+          description: `Celebrating ${p.name}'s next milestone`,
           daysUntil,
           isBirthday: true
         };
