@@ -125,14 +125,7 @@ export default function DashboardPage() {
       icon: Clock, 
       color: "text-pink-500", 
       href: "/moments" 
-    },
-    { 
-      title: t("nav.lunar"), 
-      description: moonData ? `${moonData.emoji} ${moonData.name}` : "Loading...", 
-      icon: Moon, 
-      color: "text-indigo-500", 
-      href: "/lunar" 
-    },
+    }
   ];
 
   return (
@@ -259,9 +252,9 @@ export default function DashboardPage() {
                   </p>
                   <p className="text-xs text-indigo-500 font-semibold italic">Auspicious window is open</p>
                 </div>
-                <Link href="/lunar">
+                <Link href="/calendar">
                   <Badge className="mt-4 hover:bg-primary transition-colors cursor-pointer px-4 py-1">
-                    Explore Details &rarr;
+                    See Monthly View &rarr;
                   </Badge>
                 </Link>
               </div>

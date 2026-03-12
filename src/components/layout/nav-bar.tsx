@@ -75,7 +75,6 @@ export function NavBar() {
     { href: "/calendar", label: t("nav.calendar"), icon: Calendar },
     { href: "/family-tree", label: t("nav.tree"), icon: GitBranch },
     { href: "/moments", label: t("nav.moments"), icon: Clock },
-    { href: "/lunar", label: t("nav.lunar"), icon: Moon },
   ];
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
