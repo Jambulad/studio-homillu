@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react";
@@ -11,24 +10,39 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, serverTimestamp, doc } from "firebase/firestore";
 import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { useToast } from "@/hooks/use-toast";
+
+const DUMMY_ITEMS = [
+  { id: "d1", name: "Whole Milk", quantity: "2 Liters", isChecked: false, isFavorite: true },
+  { id: "d2", name: "Brown Eggs", quantity: "1 Dozen", isChecked: true, isFavorite: false },
+  { id: "d3", name: "Sourdough Bread", quantity: "1 Loaf", isChecked: false, isFavorite: true },
+  { id: "d4", name: "Red Apples", quantity: "6 pcs", isChecked: false, isFavorite: false },
+];
 
 export default function ShoppingPage() {
   const { t } = useTranslation();
   const firestore = useFirestore();
   const { user } = useUser();
+  const { toast } = useToast();
   const [newItem, setNewItem] = useState({ name: "", quantity: "" });
 
-  const householdId = user?.uid || "default";
+  const householdId = user?.uid || "placeholder";
 
   const shoppingQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return collection(firestore, "households", householdId, "shoppingListItems");
   }, [firestore, user, householdId]);
 
-  const { data: items, isLoading } = useCollection(shoppingQuery);
+  const { data: cloudItems, isLoading } = useCollection(shoppingQuery);
+
+  const displayItems = user ? cloudItems : DUMMY_ITEMS;
 
   const addItem = () => {
-    if (!newItem.name || !user) return;
+    if (!user) {
+      toast({ title: "Sign in required", description: "Sign in to manage your household shopping list." });
+      return;
+    }
+    if (!newItem.name) return;
 
     const itemData = {
       householdId,
@@ -47,19 +61,22 @@ export default function ShoppingPage() {
   };
 
   const toggleCheck = (itemId: string, currentStatus: boolean) => {
-    if (!firestore) return;
+    if (!user || itemId.startsWith("d")) {
+      toast({ title: "Preview Mode", description: "Please sign in to update items." });
+      return;
+    }
     const itemRef = doc(firestore, "households", householdId, "shoppingListItems", itemId);
     updateDocumentNonBlocking(itemRef, { isChecked: !currentStatus });
   };
 
   const toggleFavorite = (itemId: string, currentStatus: boolean) => {
-    if (!firestore) return;
+    if (!user || itemId.startsWith("d")) return;
     const itemRef = doc(firestore, "households", householdId, "shoppingListItems", itemId);
     updateDocumentNonBlocking(itemRef, { isFavorite: !currentStatus });
   };
 
   const deleteItem = (itemId: string) => {
-    if (!firestore) return;
+    if (!user || itemId.startsWith("d")) return;
     const itemRef = doc(firestore, "households", householdId, "shoppingListItems", itemId);
     deleteDocumentNonBlocking(itemRef);
   };
@@ -99,6 +116,11 @@ export default function ShoppingPage() {
         </div>
       ) : (
         <div className="bg-card rounded-xl shadow-sm border overflow-hidden">
+          {!user && (
+            <div className="bg-accent/5 border-b p-3 text-center text-sm font-medium text-accent">
+              Viewing guest items. Log in to create your shared family list.
+            </div>
+          )}
           <Table>
             <TableHeader>
               <TableRow>
@@ -110,7 +132,7 @@ export default function ShoppingPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {items?.map((item: any) => (
+              {displayItems?.map((item: any) => (
                 <TableRow key={item.id} className={item.isChecked ? "opacity-50" : ""}>
                   <TableCell>
                     <Checkbox 
@@ -133,18 +155,20 @@ export default function ShoppingPage() {
                     </Button>
                   </TableCell>
                   <TableCell>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => deleteItem(item.id)}
-                      className="text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {user && !item.id.startsWith("d") && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => deleteItem(item.id)}
+                        className="text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
-              {items?.length === 0 && (
+              {displayItems?.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
                     {t("shopping.noItems")}

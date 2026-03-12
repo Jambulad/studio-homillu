@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react";
@@ -31,25 +30,39 @@ import { Badge } from "@/components/ui/badge";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, serverTimestamp, doc } from "firebase/firestore";
 import { addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { useToast } from "@/hooks/use-toast";
+
+const DUMMY_MOMENTS = [
+  { id: "d1", title: "Summer Road Trip", date: "2024-07-15", category: "milestone", description: "First family trip to the mountains" },
+  { id: "d2", title: "Car Service", date: "2024-05-10", category: "maintenance", description: "Oil and filters changed" },
+  { id: "d3", title: "Hawaii Vacation", date: "2025-01-20", category: "countdown", description: "Can't wait for the beach!" },
+];
 
 export default function MomentsPage() {
   const { t } = useTranslation();
   const firestore = useFirestore();
   const { user } = useUser();
+  const { toast } = useToast();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newMoment, setNewMoment] = useState({ title: "", date: "", category: "milestone", description: "" });
 
-  const householdId = user?.uid || "default";
+  const householdId = user?.uid || "placeholder";
 
   const momentsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return collection(firestore, "households", householdId, "moments");
   }, [firestore, user, householdId]);
 
-  const { data: moments, isLoading } = useCollection(momentsQuery);
+  const { data: cloudMoments, isLoading } = useCollection(momentsQuery);
+
+  const displayMoments = user ? cloudMoments : DUMMY_MOMENTS;
 
   const handleAddMoment = () => {
-    if (!newMoment.title || !newMoment.date || !user) return;
+    if (!user) {
+      toast({ title: "Sign in required", description: "Sign in to preserve your family's precious moments." });
+      return;
+    }
+    if (!newMoment.title || !newMoment.date) return;
 
     const momentData = {
       householdId,
@@ -69,7 +82,7 @@ export default function MomentsPage() {
   };
 
   const deleteMoment = (momentId: string) => {
-    if (!firestore) return;
+    if (!user || momentId.startsWith("d")) return;
     const momentRef = doc(firestore, "households", householdId, "moments", momentId);
     deleteDocumentNonBlocking(momentRef);
   };
@@ -153,13 +166,19 @@ export default function MomentsPage() {
         </Dialog>
       </div>
 
+      {!user && (
+        <div className="bg-pink-500/10 border border-pink-500/20 p-4 rounded-2xl text-center text-sm font-bold text-pink-700">
+          Showing guest moments. Sign in to start your family's digital memory book.
+        </div>
+      )}
+
       {isLoading ? (
         <div className="flex justify-center p-12">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {moments?.map((moment: any) => {
+          {displayMoments?.map((moment: any) => {
             const daysLeft = getDaysUntil(moment.date);
             const isPast = daysLeft < 0;
 
@@ -171,14 +190,16 @@ export default function MomentsPage() {
                       {getCategoryIcon(moment.category)}
                       <span className="capitalize">{moment.category}</span>
                     </Badge>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => deleteMoment(moment.id)}
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {user && !moment.id.startsWith("d") && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => deleteMoment(moment.id)}
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                   <CardTitle className="text-xl mt-3">{moment.title}</CardTitle>
                   <CardDescription className="flex items-center gap-1.5">
@@ -221,7 +242,7 @@ export default function MomentsPage() {
               </Card>
             );
           })}
-          {moments?.length === 0 && (
+          {displayMoments?.length === 0 && (
             <div className="col-span-full py-24 text-center text-muted-foreground">
               No moments captured yet. Start by adding your first family milestone!
             </div>

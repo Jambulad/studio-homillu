@@ -1,9 +1,8 @@
-
 "use client"
 
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { format, isSameDay, addHours } from "date-fns";
+import { format, isSameDay, addHours, startOfToday } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,34 +14,47 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, serverTimestamp, doc } from "firebase/firestore";
 import { addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { useToast } from "@/hooks/use-toast";
+
+const DUMMY_EVENTS = [
+  { id: "d1", title: "Family Picnic", location: "Central Park", description: "Bring sandwiches and fruit", startDateTime: startOfToday() },
+  { id: "d2", title: "Doctor Appointment", location: "City Hospital", description: "Routine checkup", startDateTime: addHours(startOfToday(), 4) },
+];
 
 export default function CalendarPage() {
   const { t } = useTranslation();
   const firestore = useFirestore();
   const { user } = useUser();
+  const { toast } = useToast();
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newEvent, setNewEvent] = useState({ title: "", location: "", description: "" });
 
-  const householdId = user?.uid || "default";
+  const householdId = user?.uid || "placeholder";
 
   const eventsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return collection(firestore, "households", householdId, "calendarEvents");
   }, [firestore, user, householdId]);
 
-  const { data: events, isLoading } = useCollection(eventsQuery);
+  const { data: cloudEvents, isLoading } = useCollection(eventsQuery);
+
+  const displayEvents = user ? cloudEvents : DUMMY_EVENTS;
 
   const selectedDayEvents = useMemo(() => {
-    if (!date || !events) return [];
-    return events.filter((event: any) => {
+    if (!date || !displayEvents) return [];
+    return displayEvents.filter((event: any) => {
       const eventDate = event.startDateTime?.toDate ? event.startDateTime.toDate() : new Date(event.startDateTime);
       return isSameDay(eventDate, date);
     });
-  }, [date, events]);
+  }, [date, displayEvents]);
 
   const handleAddEvent = () => {
-    if (!newEvent.title || !date || !user) return;
+    if (!user) {
+      toast({ title: "Sign in required", description: "Please sign in to schedule family events." });
+      return;
+    }
+    if (!newEvent.title || !date) return;
 
     const eventData = {
       householdId,
@@ -63,16 +75,16 @@ export default function CalendarPage() {
   };
 
   const deleteEvent = (eventId: string) => {
-    if (!firestore) return;
+    if (!user || eventId.startsWith("d")) return;
     const eventRef = doc(firestore, "households", householdId, "calendarEvents", eventId);
     deleteDocumentNonBlocking(eventRef);
   };
 
   const exportToICS = () => {
-    if (!events) return;
+    if (!displayEvents) return;
     let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//HomIllu//Family Calendar//EN\nCALSCALE:GREGORIAN\nMETHOD:PUBLISH\n";
     
-    events.forEach((event: any) => {
+    displayEvents.forEach((event: any) => {
       const eventDate = event.startDateTime?.toDate ? event.startDateTime.toDate() : new Date(event.startDateTime);
       const dtStart = format(eventDate, "yyyyMMdd'T'HHmmss'Z'");
       const dtEnd = format(addHours(eventDate, 1), "yyyyMMdd'T'HHmmss'Z'");
@@ -167,6 +179,12 @@ export default function CalendarPage() {
         </div>
       </div>
 
+      {!user && (
+        <div className="bg-orange-500/10 border border-orange-500/20 p-4 rounded-2xl text-center text-sm font-semibold text-orange-700">
+          Showing sample calendar events. Log in to manage your family's personal schedule.
+        </div>
+      )}
+
       <div className="grid gap-6 md:grid-cols-[400px_1fr]">
         <Card className="shadow-sm border-muted/50 overflow-hidden">
           <CardContent className="p-0">
@@ -222,14 +240,16 @@ export default function CalendarPage() {
                                 )}
                               </div>
                             </div>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              onClick={() => deleteEvent(event.id)}
-                              className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {user && !event.id.startsWith("d") && (
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => deleteEvent(event.id)}
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                           {event.description && (
                             <p className="mt-3 text-sm text-muted-foreground border-t pt-2 border-dashed">

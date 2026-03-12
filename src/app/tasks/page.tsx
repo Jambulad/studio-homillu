@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react";
@@ -14,25 +13,39 @@ import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlo
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+
+const DUMMY_TASKS = [
+  { id: "d1", title: "Water the indoor plants", assignedToId: "Family", recurrence: "Daily", isCompleted: false },
+  { id: "d2", title: "Buy groceries for dinner", assignedToId: "Me", recurrence: "None", isCompleted: true },
+  { id: "d3", title: "Clean the backyard", assignedToId: "Kids", recurrence: "Weekly", isCompleted: false },
+];
 
 export default function TasksPage() {
   const { t } = useTranslation();
   const firestore = useFirestore();
   const { user } = useUser();
+  const { toast } = useToast();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newTask, setNewTask] = useState({ title: "", assignee: "", recurrence: "none" });
 
-  const householdId = user?.uid || "default";
+  const householdId = user?.uid || "placeholder";
 
   const tasksQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return collection(firestore, "households", householdId, "tasks");
   }, [firestore, user, householdId]);
 
-  const { data: tasks, isLoading } = useCollection(tasksQuery);
+  const { data: cloudTasks, isLoading } = useCollection(tasksQuery);
+
+  const displayTasks = user ? cloudTasks : DUMMY_TASKS;
 
   const handleAddTask = () => {
-    if (!newTask.title || !user) return;
+    if (!user) {
+      toast({ title: "Sign in required", description: "Please sign in to save your family tasks." });
+      return;
+    }
+    if (!newTask.title) return;
 
     const taskData = {
       householdId,
@@ -53,7 +66,10 @@ export default function TasksPage() {
   };
 
   const toggleTask = (taskId: string, currentStatus: boolean) => {
-    if (!firestore) return;
+    if (!user || taskId.startsWith("d")) {
+      toast({ title: "Preview Mode", description: "Sign in to interact with tasks." });
+      return;
+    }
     const taskRef = doc(firestore, "households", householdId, "tasks", taskId);
     updateDocumentNonBlocking(taskRef, { 
       isCompleted: !currentStatus,
@@ -62,7 +78,7 @@ export default function TasksPage() {
   };
 
   const deleteTask = (taskId: string) => {
-    if (!firestore) return;
+    if (!user || taskId.startsWith("d")) return;
     const taskRef = doc(firestore, "households", householdId, "tasks", taskId);
     deleteDocumentNonBlocking(taskRef);
   };
@@ -119,10 +135,15 @@ export default function TasksPage() {
         </div>
       ) : (
         <div className="grid gap-4">
-          {tasks?.length === 0 && (
+          {!user && (
+            <div className="bg-primary/5 border border-primary/20 p-3 rounded-lg text-sm text-center font-medium text-primary mb-4">
+              Showing preview data. Sign in to manage your family tasks.
+            </div>
+          )}
+          {displayTasks?.length === 0 && (
             <p className="text-center text-muted-foreground py-12">{t("tasks.noTasks")}</p>
           )}
-          {tasks?.map((task: any) => (
+          {displayTasks?.map((task: any) => (
             <Card key={task.id} className={`group border-l-4 transition-all ${task.isCompleted ? 'border-l-accent bg-accent/5 opacity-75' : 'border-l-primary shadow-sm hover:shadow-md'}`}>
               <CardContent className="flex items-center justify-between p-4">
                 <div className="flex items-center gap-4">
@@ -151,14 +172,16 @@ export default function TasksPage() {
                   <Badge variant={task.isCompleted ? "outline" : "default"}>
                     {task.isCompleted ? t("tasks.done") : "Pending"}
                   </Badge>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => deleteTask(task.id)}
-                    className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {user && !task.id.startsWith("d") && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => deleteTask(task.id)}
+                      className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useMemo, useCallback, useEffect } from "react";
@@ -58,6 +57,19 @@ const JSON_TEMPLATE = {
   ]
 };
 
+const DUMMY_PERSONS = [
+  { id: "d1", name: "Jambula Chandraiah", birthDate: "1922", role: "Head of Family", gender: "male", description: "The patriarch of the family.", photoUrl: "https://picsum.photos/seed/chandraiah/200/200" },
+  { id: "d2", name: "Jambula Laxmamma", birthDate: "1928", role: "Matriarch", gender: "female", description: "The matriarch of the family.", photoUrl: "https://picsum.photos/seed/laxmamma/200/200" },
+  { id: "d3", name: "Jambula Sreerama Murthy", birthDate: "1956", role: "Son", gender: "male", description: "Elder son of Chandraiah and Laxmamma.", photoUrl: "https://picsum.photos/seed/murthy/200/200" },
+  { id: "d4", name: "Jambula Latha", birthDate: "1960", role: "Daughter", gender: "female", description: "Daughter of Chandraiah and Laxmamma.", photoUrl: "https://picsum.photos/seed/latha/200/200" },
+];
+
+const DUMMY_RELATIONSHIPS = [
+  { id: "r1", person1Id: "d1", person2Id: "d2", type: "spouse" },
+  { id: "r2", person1Id: "d1", person2Id: "d3", type: "parent-child" },
+  { id: "r3", person1Id: "d1", person2Id: "d4", type: "parent-child" },
+];
+
 export default function FamilyTreePage() {
   const { t } = useTranslation();
   const firestore = useFirestore();
@@ -84,7 +96,7 @@ export default function FamilyTreePage() {
 
   const [personForm, setPersonForm] = useState<Partial<Person & { relatedToId?: string, relationType?: string }>>(initialPersonState);
 
-  const householdId = user?.uid || "default";
+  const householdId = user?.uid || "placeholder";
 
   const personsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -96,32 +108,39 @@ export default function FamilyTreePage() {
     return collection(firestore, "households", householdId, "relationships");
   }, [firestore, user, householdId]);
 
-  const { data: persons, isLoading: isPersonsLoading } = useCollection(personsQuery);
-  const { data: relationships, isLoading: isRelLoading } = useCollection(relationshipsQuery);
+  const { data: cloudPersons, isLoading: isPersonsLoading } = useCollection(personsQuery);
+  const { data: cloudRelationships, isLoading: isRelLoading } = useCollection(relationshipsQuery);
+
+  const displayPersons = user ? cloudPersons : DUMMY_PERSONS;
+  const displayRelationships = user ? cloudRelationships : DUMMY_RELATIONSHIPS;
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
   const handleEdit = useCallback((person: Person) => {
+    if (!user || person.id.startsWith("d")) {
+      toast({ title: "Preview Mode", description: "Sign in to edit family profiles." });
+      return;
+    }
     setPersonForm(person);
     setImagePreview(person.photoUrl || null);
     setIsEditMode(true);
     setIsDialogOpen(true);
-  }, []);
+  }, [user, toast]);
 
   const handleDelete = useCallback((personId: string) => {
-    if (!firestore || !user) return;
+    if (!user || personId.startsWith("d")) {
+      toast({ title: "Preview Mode", description: "Sign in to delete family profiles." });
+      return;
+    }
     const personRef = doc(firestore, "households", householdId, "persons", personId);
     deleteDocumentNonBlocking(personRef);
-    toast({
-      title: "Member removed",
-      description: "The family member has been removed from the tree.",
-    });
+    toast({ title: "Member removed" });
   }, [firestore, householdId, user, toast]);
 
   useEffect(() => {
-    if (persons) {
-      const newNodes: Node[] = persons.map((person: any, index: number) => {
+    if (displayPersons) {
+      const newNodes: Node[] = displayPersons.map((person: any, index: number) => {
         return {
           id: person.id,
           type: "familyMember",
@@ -135,11 +154,11 @@ export default function FamilyTreePage() {
       });
       setNodes(newNodes);
     }
-  }, [persons, setNodes, handleEdit, handleDelete]);
+  }, [displayPersons, setNodes, handleEdit, handleDelete]);
 
   useEffect(() => {
-    if (relationships) {
-      const newEdges: Edge[] = relationships.map((rel: any) => {
+    if (displayRelationships) {
+      const newEdges: Edge[] = displayRelationships.map((rel: any) => {
         return {
           id: rel.id,
           source: rel.person1Id,
@@ -154,11 +173,14 @@ export default function FamilyTreePage() {
       });
       setEdges(newEdges);
     }
-  }, [relationships, setEdges]);
+  }, [displayRelationships, setEdges]);
 
   const onConnect = useCallback(
     (params: Connection) => {
-      if (!user) return;
+      if (!user) {
+        toast({ title: "Sign in required", description: "Sign in to create bloodline or spouse links." });
+        return;
+      }
       const relRef = collection(firestore, "households", householdId, "relationships");
       addDocumentNonBlocking(relRef, {
         householdId,
@@ -170,21 +192,16 @@ export default function FamilyTreePage() {
         householdMembers: { [user.uid]: "admin" }
       });
     },
-    [firestore, householdId, user]
+    [firestore, householdId, user, toast]
   );
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 1024 * 1024) {
-        toast({
-          variant: "destructive",
-          title: "File too large",
-          description: "Please select an image smaller than 1MB.",
-        });
+        toast({ variant: "destructive", title: "File too large", description: "Please select an image smaller than 1MB." });
         return;
       }
-
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64String = reader.result as string;
@@ -199,11 +216,7 @@ export default function FamilyTreePage() {
     const file = e.target.files?.[0];
     if (file) {
       if (file.type !== "application/json") {
-        toast({
-          variant: "destructive",
-          title: "Invalid file type",
-          description: "Please upload a .json file.",
-        });
+        toast({ variant: "destructive", title: "Invalid file type", description: "Please upload a .json file." });
         return;
       }
       const reader = new FileReader();
@@ -211,16 +224,9 @@ export default function FamilyTreePage() {
         try {
           const json = JSON.parse(event.target?.result as string);
           setUploadedJson(json);
-          toast({
-            title: "JSON Loaded",
-            description: "Ready to import legacy records.",
-          });
+          toast({ title: "JSON Loaded", description: "Ready to import legacy records." });
         } catch (err) {
-          toast({
-            variant: "destructive",
-            title: "Parse Error",
-            description: "Invalid JSON format in file.",
-          });
+          toast({ variant: "destructive", title: "Parse Error", description: "Invalid JSON format in file." });
         }
       };
       reader.readAsText(file);
@@ -228,7 +234,11 @@ export default function FamilyTreePage() {
   };
 
   const handleSave = async () => {
-    if (!personForm.name || !user) return;
+    if (!user) {
+      toast({ title: "Sign in required", description: "Please sign in to save your family tree." });
+      return;
+    }
+    if (!personForm.name) return;
 
     const personData = {
       householdId,
@@ -274,7 +284,11 @@ export default function FamilyTreePage() {
   };
 
   const handleBulkImport = async () => {
-    if (!user || !firestore || !uploadedJson) {
+    if (!user) {
+      toast({ variant: "destructive", title: "Sign In Required", description: "You must be signed in to import family records to the cloud." });
+      return;
+    }
+    if (!uploadedJson) {
       toast({ variant: "destructive", title: "Action Required", description: "Please upload a JSON file first." });
       return;
     }
@@ -334,7 +348,7 @@ export default function FamilyTreePage() {
               householdId: user.uid,
               name: spouseName,
               birthDate: "",
-              description: "",
+              description: node.spouseDescription || "",
               gender: spouseLabel === "Wife" ? "female" : "male",
               role: spouseLabel,
               photoUrl: `https://picsum.photos/seed/${spouseName}/200/200`,
@@ -363,19 +377,12 @@ export default function FamilyTreePage() {
       };
 
       await importNode(uploadedJson);
-      toast({
-        title: "Import Success",
-        description: "Your lineage has been successfully synchronized.",
-      });
+      toast({ title: "Import Success", description: "Your lineage has been successfully synchronized." });
       setIsImportDialogOpen(false);
       setUploadedJson(null);
     } catch (e: any) {
       console.error("Bulk Import Error:", e);
-      toast({
-        variant: "destructive",
-        title: "Sync Failed",
-        description: e.message || "There was an error importing your records.",
-      });
+      toast({ variant: "destructive", title: "Sync Failed", description: e.message || "There was an error importing your records." });
     } finally {
       setIsImporting(false);
       setImportStep("");
@@ -417,6 +424,12 @@ export default function FamilyTreePage() {
       </div>
 
       <div className="flex-1 bg-secondary/10 rounded-2xl border-2 border-dashed border-muted overflow-hidden relative shadow-inner">
+        {!user && (
+          <div className="absolute top-4 left-4 z-10 bg-background/80 backdrop-blur-md px-4 py-2 rounded-lg border shadow-lg text-xs font-bold text-primary flex items-center gap-2">
+            <Info className="h-4 w-4" />
+            PREVIEW MODE: Sign in to save your personal family tree.
+          </div>
+        )}
         {(isPersonsLoading || isImporting) ? (
           <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-20 backdrop-blur-sm">
             <div className="flex flex-col items-center gap-4 bg-card p-8 rounded-2xl shadow-2xl border border-primary/20 max-w-sm w-full mx-4">
@@ -560,7 +573,7 @@ export default function FamilyTreePage() {
               />
             </div>
 
-            {!isEditMode && persons && persons.length > 0 && (
+            {!isEditMode && displayPersons && displayPersons.length > 0 && (
               <div className="border-t pt-6 space-y-4">
                 <p className="text-sm font-black text-primary uppercase tracking-tighter">Immediate Relationship Mapping</p>
                 <div className="grid grid-cols-2 gap-4">
@@ -571,7 +584,7 @@ export default function FamilyTreePage() {
                         <SelectValue placeholder="Choose relative" />
                       </SelectTrigger>
                       <SelectContent>
-                        {persons.map((p: any) => (
+                        {displayPersons.map((p: any) => (
                           <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                         ))}
                       </SelectContent>
