@@ -25,6 +25,27 @@ import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebas
 import { collection } from "firebase/firestore";
 import { Badge } from "@/components/ui/badge";
 
+// Synchronized dummy data constants to match sub-pages
+const DUMMY_TASKS = [
+  { id: "d1", title: "Water the indoor plants", isCompleted: false },
+  { id: "d2", title: "Buy groceries for dinner", isCompleted: true },
+  { id: "d3", title: "Clean the backyard", isCompleted: false },
+];
+
+const DUMMY_ITEMS = [
+  { id: "d1", name: "Whole Milk" },
+  { id: "d2", name: "Brown Eggs" },
+  { id: "d3", name: "Sourdough Bread" },
+  { id: "d4", name: "Red Apples" },
+];
+
+const DUMMY_PERSONS = [
+  { id: "d1", name: "Jambula Chandraiah" },
+  { id: "d2", name: "Jambula Laxmamma" },
+  { id: "d3", name: "Jambula Sreerama Murthy" },
+  { id: "d4", name: "Jambula Latha" },
+];
+
 export default function DashboardPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -47,23 +68,39 @@ export default function DashboardPage() {
     return collection(firestore, "households", householdId, "shoppingListItems");
   }, [firestore, user, householdId]);
 
+  const personsQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, "households", householdId, "persons");
+  }, [firestore, user, householdId]);
+
   const { data: tasks, isLoading: tasksLoading } = useCollection(tasksQuery);
   const { data: shopping, isLoading: shoppingLoading } = useCollection(shoppingQuery);
+  const { data: persons, isLoading: personsLoading } = useCollection(personsQuery);
 
-  const pendingTasks = tasks?.filter((t: any) => !t.isCompleted).length || 0;
-  const shoppingItems = shopping?.length || 0;
+  // Use cloud data if logged in, otherwise use dummy data
+  const displayTasks = user ? (tasks || []) : DUMMY_TASKS;
+  const displayShopping = user ? (shopping || []) : DUMMY_ITEMS;
+  const displayPersons = user ? (persons || []) : DUMMY_PERSONS;
+
+  const pendingTasks = displayTasks.filter((t: any) => !t.isCompleted).length;
+  const shoppingItems = displayShopping.length;
+  const personCount = displayPersons.length;
+
+  const taskCompletionRate = displayTasks.length > 0 
+    ? Math.round(((displayTasks.length - pendingTasks) / displayTasks.length) * 100) 
+    : 0;
 
   const widgets = [
     { 
       title: t("nav.tasks"), 
-      description: tasksLoading ? "..." : `${pendingTasks} tasks pending`, 
+      description: tasksLoading && user ? "..." : `${pendingTasks} tasks pending`, 
       icon: CheckSquare, 
       color: "text-primary", 
       href: "/tasks" 
     },
     { 
       title: t("nav.shopping"), 
-      description: shoppingLoading ? "..." : `${shoppingItems} items on list`, 
+      description: shoppingLoading && user ? "..." : `${shoppingItems} items on list`, 
       icon: ShoppingBag, 
       color: "text-accent", 
       href: "/shopping" 
@@ -77,7 +114,7 @@ export default function DashboardPage() {
     },
     { 
       title: t("nav.tree"), 
-      description: "Generations explored", 
+      description: personsLoading && user ? "..." : `${personCount} family members`, 
       icon: GitBranch, 
       color: "text-teal-600", 
       href: "/family-tree" 
@@ -169,14 +206,12 @@ export default function DashboardPage() {
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm font-bold">
                 <span>Household Task Completion</span>
-                <span className="text-primary">
-                  {tasks?.length ? Math.round(((tasks.length - pendingTasks) / tasks.length) * 100) : 0}%
-                </span>
+                <span className="text-primary">{taskCompletionRate}%</span>
               </div>
               <div className="h-3 w-full rounded-full bg-secondary shadow-inner">
                 <div 
                   className="h-3 rounded-full bg-primary transition-all duration-1000 ease-out shadow-sm" 
-                  style={{ width: `${tasks?.length ? ((tasks.length - pendingTasks) / tasks.length) * 100 : 0}%` }} 
+                  style={{ width: `${taskCompletionRate}%` }} 
                 />
               </div>
             </div>
@@ -189,11 +224,13 @@ export default function DashboardPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-3 bg-secondary/30 rounded-lg">
                   <p className="text-xs text-muted-foreground font-bold">ACTIVE USERS</p>
-                  <p className="text-lg font-bold">1 (Admin)</p>
+                  <p className="text-lg font-bold">{user ? "1 (Admin)" : "Guest Mode"}</p>
                 </div>
                 <div className="p-3 bg-secondary/30 rounded-lg">
                   <p className="text-xs text-muted-foreground font-bold">RECORDS</p>
-                  <p className="text-lg font-bold">{(tasks?.length || 0) + (shopping?.length || 0)}</p>
+                  <p className="text-lg font-bold">
+                    {displayTasks.length + displayShopping.length + displayPersons.length}
+                  </p>
                 </div>
               </div>
             </div>
