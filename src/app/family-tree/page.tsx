@@ -62,7 +62,7 @@ const JSON_TEMPLATE = {
 
 const DUMMY_PERSONS = [
   { id: "d1", name: "Jambula Chandraiah", birthDate: "1922", role: "Head of Family", gender: "male", description: "The patriarch of the family.", photoUrl: "https://picsum.photos/seed/chandraiah/200/200", isConfirmed: true },
-  { id: "d2", name: "Jambula Laxmamma", birthDate: "1928", role: "Matriarch", gender: "female", description: "The matriarch of the family.", photoUrl: "https://picsum.photos/seed/laxmamma/200/200", isConfirmed: true },
+  { id: "d2", name: "Jambula Laxmamma", birthDate: "1928", role: "Matriarch", gender: "female", description: "The patriarch of the family.", photoUrl: "https://picsum.photos/seed/laxmamma/200/200", isConfirmed: true },
   { id: "d3", name: "Jambula Sreerama Murthy", birthDate: "1956", role: "Son", gender: "male", description: "Elder son of Chandraiah and Laxmamma.", photoUrl: "https://picsum.photos/seed/murthy/200/200", isConfirmed: true },
   { id: "d4", name: "Jambula Latha", birthDate: "1960", role: "Daughter", gender: "female", description: "Daughter of Chandraiah and Laxmamma.", photoUrl: "https://picsum.photos/seed/latha/200/200", email: "latha@example.com", isConfirmed: false },
 ];
@@ -165,15 +165,17 @@ export default function FamilyTreePage() {
   useEffect(() => {
     if (displayRelationships) {
       const newEdges: Edge[] = displayRelationships.map((rel: any) => {
+        const isSpouse = rel.type === "spouse";
         return {
           id: rel.id,
           source: rel.person1Id,
           target: rel.person2Id,
-          animated: rel.type === "parent-child",
+          animated: false,
           label: rel.type,
           style: { 
-            stroke: rel.type === "spouse" ? 'hsl(var(--accent))' : 'hsl(var(--primary))', 
-            strokeWidth: 3 
+            stroke: isSpouse ? 'hsl(var(--accent))' : 'hsl(var(--primary))', 
+            strokeWidth: 3,
+            strokeDasharray: isSpouse ? '5,5' : '0'
           },
         };
       });
