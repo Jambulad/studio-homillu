@@ -14,13 +14,27 @@ import {
   Connection,
   Edge,
   Node,
-  Panel
+  Panel,
+  useReactFlow
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
 import { TreeNode, Person } from "@/components/features/family-tree/tree-node";
 import { Button } from "@/components/ui/button";
-import { Plus, GitBranch, Share2, Info, Loader2, Camera, Database, Trash2, CloudUpload, FileJson, Code, Mail } from "lucide-react";
+import { 
+  Plus, 
+  GitBranch, 
+  Info, 
+  Loader2, 
+  Camera, 
+  Database, 
+  CloudUpload, 
+  FileJson, 
+  Code, 
+  Mail,
+  LayoutGrid,
+  Network
+} from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +48,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, serverTimestamp, doc, addDoc, setDoc } from "firebase/firestore";
 import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
@@ -62,7 +77,7 @@ const JSON_TEMPLATE = {
 
 const DUMMY_PERSONS = [
   { id: "d1", name: "Jambula Chandraiah", birthDate: "1922", role: "Head of Family", gender: "male", description: "The patriarch of the family.", photoUrl: "https://picsum.photos/seed/chandraiah/200/200", isConfirmed: true },
-  { id: "d2", name: "Jambula Laxmamma", birthDate: "1928", role: "Matriarch", gender: "female", description: "The patriarch of the family.", photoUrl: "https://picsum.photos/seed/laxmamma/200/200", isConfirmed: true },
+  { id: "d2", name: "Jambula Laxmamma", birthDate: "1928", role: "Matriarch", gender: "female", description: "The matriarch of the family.", photoUrl: "https://picsum.photos/seed/laxmamma/200/200", isConfirmed: true },
   { id: "d3", name: "Jambula Sreerama Murthy", birthDate: "1956", role: "Son", gender: "male", description: "Elder son of Chandraiah and Laxmamma.", photoUrl: "https://picsum.photos/seed/murthy/200/200", isConfirmed: true },
   { id: "d4", name: "Jambula Latha", birthDate: "1960", role: "Daughter", gender: "female", description: "Daughter of Chandraiah and Laxmamma.", photoUrl: "https://picsum.photos/seed/latha/200/200", email: "latha@example.com", isConfirmed: false },
 ];
@@ -78,6 +93,8 @@ export default function FamilyTreePage() {
   const firestore = useFirestore();
   const { user } = useUser();
   const { toast } = useToast();
+  const { fitView } = useReactFlow();
+  
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -86,6 +103,7 @@ export default function FamilyTreePage() {
   const [importStep, setImportStep] = useState("");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadedJson, setUploadedJson] = useState<any>(null);
+  const [viewMode, setViewMode] = useState<"free" | "org">("free");
   
   const initialPersonState: Partial<Person & { relatedToId?: string, relationType?: string }> = { 
     name: "", 
@@ -117,8 +135,8 @@ export default function FamilyTreePage() {
   const { data: cloudPersons, isLoading: isPersonsLoading } = useCollection(personsQuery);
   const { data: cloudRelationships, isLoading: isRelLoading } = useCollection(relationshipsQuery);
 
-  const displayPersons = user ? cloudPersons : DUMMY_PERSONS;
-  const displayRelationships = user ? cloudRelationships : DUMMY_RELATIONSHIPS;
+  const displayPersons = user ? (cloudPersons || []) : DUMMY_PERSONS;
+  const displayRelationships = user ? (cloudRelationships || []) : DUMMY_RELATIONSHIPS;
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -144,26 +162,85 @@ export default function FamilyTreePage() {
     toast({ title: "Member removed" });
   }, [firestore, householdId, user, toast]);
 
-  useEffect(() => {
-    if (displayPersons) {
-      const newNodes: Node[] = displayPersons.map((person: any, index: number) => {
-        return {
-          id: person.id,
-          type: "familyMember",
-          position: { x: index * 280, y: index * 180 },
-          data: { 
-            person,
-            onEdit: handleEdit,
-            onDelete: handleDelete
-          },
-        };
-      });
-      setNodes(newNodes);
+  // Hierarchical layout logic for Org Chart mode
+  const layoutNodes = useCallback((persons: any[], relationships: any[], mode: "free" | "org") => {
+    if (mode === "free") {
+      return persons.map((person, index) => ({
+        id: person.id,
+        type: "familyMember",
+        position: { x: (index % 4) * 280, y: Math.floor(index / 4) * 250 },
+        data: { person, onEdit: handleEdit, onDelete: handleDelete },
+      }));
     }
-  }, [displayPersons, setNodes, handleEdit, handleDelete]);
+
+    // Simple vertical hierarchy layout
+    const nodeMap = new Map();
+    const childrenMap = new Map();
+    const spouseMap = new Map();
+    const roots = new Set(persons.map(p => p.id));
+
+    relationships.forEach(rel => {
+      if (rel.type === "parent-child") {
+        const children = childrenMap.get(rel.person1Id) || [];
+        children.push(rel.person2Id);
+        childrenMap.set(rel.person1Id, children);
+        roots.delete(rel.person2Id);
+      } else if (rel.type === "spouse") {
+        spouseMap.set(rel.person1Id, rel.person2Id);
+        spouseMap.set(rel.person2Id, rel.person1Id);
+      }
+    });
+
+    const calculatedNodes: Node[] = [];
+    const visited = new Set();
+    const levelWidths = new Map();
+
+    const processNode = (id: string, level: number, xOffset: number) => {
+      if (visited.has(id)) return;
+      visited.add(id);
+
+      const person = persons.find(p => p.id === id);
+      if (!person) return;
+
+      const currentWidth = levelWidths.get(level) || 0;
+      const x = currentWidth + xOffset;
+      levelWidths.set(level, currentWidth + 300);
+
+      calculatedNodes.push({
+        id: person.id,
+        type: "familyMember",
+        position: { x, y: level * 300 },
+        data: { person, onEdit: handleEdit, onDelete: handleDelete },
+      });
+
+      // Handle spouse
+      const spouseId = spouseMap.get(id);
+      if (spouseId && !visited.has(spouseId)) {
+        processNode(spouseId, level, 0);
+      }
+
+      // Handle children
+      const children = childrenMap.get(id) || [];
+      children.forEach((childId: string, idx: number) => {
+        processNode(childId, level + 1, idx * 50);
+      });
+    };
+
+    Array.from(roots).forEach((rootId: any) => processNode(rootId, 0, 0));
+
+    // Fill in any disconnected nodes
+    persons.forEach(p => {
+      if (!visited.has(p.id)) processNode(p.id, 0, 0);
+    });
+
+    return calculatedNodes;
+  }, [handleEdit, handleDelete]);
 
   useEffect(() => {
-    if (displayRelationships) {
+    if (displayPersons) {
+      const newNodes = layoutNodes(displayPersons, displayRelationships, viewMode);
+      setNodes(newNodes);
+      
       const newEdges: Edge[] = displayRelationships.map((rel: any) => {
         const isSpouse = rel.type === "spouse";
         return {
@@ -180,8 +257,11 @@ export default function FamilyTreePage() {
         };
       });
       setEdges(newEdges);
+      
+      // Auto-fit view after layout
+      setTimeout(() => fitView({ padding: 0.2, duration: 800 }), 100);
     }
-  }, [displayRelationships, setEdges]);
+  }, [displayPersons, displayRelationships, viewMode, setNodes, setEdges, layoutNodes, fitView]);
 
   const onConnect = useCallback(
     (params: Connection) => {
@@ -288,7 +368,6 @@ export default function FamilyTreePage() {
           });
         }
         
-        // Trigger Invitation Flow
         if (personForm.email && personForm.email.trim() !== "") {
           setIsInviting(true);
           await sendFamilyInvitation({
@@ -297,10 +376,7 @@ export default function FamilyTreePage() {
             householdName: `${user.displayName}'s Family`,
             email: personForm.email
           });
-          toast({
-            title: "Invitation Sent",
-            description: `A consent email has been simulated for ${personForm.name}.`,
-          });
+          toast({ title: "Invitation Sent", description: `A consent email has been simulated for ${personForm.name}.` });
         }
         
         toast({ title: "Member added" });
@@ -431,14 +507,28 @@ export default function FamilyTreePage() {
   return (
     <div className="h-[calc(100vh-140px)] flex flex-col space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-primary flex items-center gap-3">
-            <GitBranch className="h-8 w-8" />
-            {t("tree.title")}
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            {t("tree.description")}
-          </p>
+        <div className="flex items-center gap-6">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-primary flex items-center gap-3">
+              <GitBranch className="h-8 w-8" />
+              {t("tree.title")}
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm">
+              {t("tree.description")}
+            </p>
+          </div>
+          <Tabs value={viewMode} onValueChange={(val: any) => setViewMode(val)} className="hidden sm:block">
+            <TabsList className="bg-secondary/50 p-1">
+              <TabsTrigger value="free" className="gap-2">
+                <LayoutGrid className="h-4 w-4" />
+                Family Chart
+              </TabsTrigger>
+              <TabsTrigger value="org" className="gap-2">
+                <Network className="h-4 w-4" />
+                Org Chart
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
         <div className="flex gap-2">
           <Button 
@@ -447,7 +537,7 @@ export default function FamilyTreePage() {
             onClick={() => setIsImportDialogOpen(true)}
           >
             <FileJson className="h-4 w-4" />
-            Bulk Import JSON
+            Bulk Import
           </Button>
           <Button className="gap-2 shadow-lg" onClick={() => { resetForm(); setIsDialogOpen(true); }}>
             <Plus className="h-4 w-4" />
@@ -508,7 +598,6 @@ export default function FamilyTreePage() {
         )}
       </div>
 
-      {/* Manual Entry Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -578,7 +667,6 @@ export default function FamilyTreePage() {
                 placeholder="Consent required for hub access" 
                 className="bg-secondary/20"
               />
-              <p className="text-[10px] text-muted-foreground italic">AI will send a consent email to this address.</p>
             </div>
 
             <div className="flex items-center justify-between p-3 bg-secondary/10 rounded-lg border border-dashed">
@@ -627,7 +715,7 @@ export default function FamilyTreePage() {
               />
             </div>
 
-            {!isEditMode && displayPersons && displayPersons.length > 0 && (
+            {!isEditMode && displayPersons.length > 0 && (
               <div className="border-t pt-6 space-y-4">
                 <p className="text-sm font-black text-primary uppercase tracking-tighter">Immediate Relationship Mapping</p>
                 <div className="grid grid-cols-2 gap-4">
@@ -669,7 +757,6 @@ export default function FamilyTreePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Bulk Import Dialog */}
       <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
