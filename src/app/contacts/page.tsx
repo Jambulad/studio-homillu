@@ -1,13 +1,67 @@
-
 "use client"
 
 import Image from "next/image";
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Heart, Mail, MapPin, Compass, Github, Twitter, ShieldCheck } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Heart, Compass, ShieldCheck, Mail, Send, Loader2 } from "lucide-react";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
+import { sendContactEmail } from "@/ai/flows/send-contact-email";
+import { useToast } from "@/hooks/use-toast";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+
+const contactSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Invalid email address"),
+  message: z.string().min(10, "Message must be at least 10 characters"),
+});
+
+type ContactFormData = z.infer<typeof contactSchema>;
 
 export default function ContactsPage() {
+  const { toast } = useToast();
+  const [isSending, setIsSending] = useState(false);
+  
+  const form = useForm<ContactFormData>({
+    resolver: zodResolver(contactSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      message: "",
+    }
+  });
+
+  const onSubmit = async (data: ContactFormData) => {
+    setIsSending(true);
+    try {
+      const result = await sendContactEmail({
+        senderName: data.name,
+        senderEmail: data.email,
+        message: data.message,
+      });
+      
+      toast({
+        title: "Message Sent",
+        description: result.preview,
+      });
+      form.reset();
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Submission Error",
+        description: "Could not deliver your message at this time.",
+      });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   const heroImageData = PlaceHolderImages.find(img => img.id === "dhileepudu-hero");
   const heroImage = heroImageData?.imageUrl || "https://picsum.photos/seed/dhileepudu/1200/600";
   const imageHint = heroImageData?.imageHint || "man lungi horseback dog";
@@ -15,7 +69,7 @@ export default function ContactsPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-1000">
       <Card className="overflow-hidden border-none shadow-2xl rounded-[2.5rem] bg-background/50 backdrop-blur">
-        <div className="relative h-[500px] w-full">
+        <div className="relative h-[450px] w-full">
           <Image 
             src={heroImage} 
             alt="Dhileepudu" 
@@ -34,8 +88,8 @@ export default function ContactsPage() {
             </h1>
           </div>
         </div>
-        <CardContent className="p-10 md:p-16 space-y-10">
-          <div className="grid md:grid-cols-[1fr_300px] gap-16">
+        <CardContent className="p-10 md:p-16 space-y-12">
+          <div className="grid md:grid-cols-[1fr_350px] gap-16">
             <div className="space-y-8">
               <div className="space-y-4">
                 <h2 className="text-4xl font-black text-primary flex items-center gap-4 tracking-tighter">
@@ -48,36 +102,70 @@ export default function ContactsPage() {
               </div>
               <div className="flex flex-wrap gap-4">
                 <Badge variant="secondary" className="gap-2 px-4 py-2 text-xs font-bold uppercase tracking-widest border border-primary/10">
-                  <MapPin className="h-4 w-4 text-primary" /> South India
+                  South India
                 </Badge>
                 <Badge variant="secondary" className="gap-2 px-4 py-2 text-xs font-bold uppercase tracking-widest border border-accent/10">
-                  <Heart className="h-4 w-4 text-pink-500" /> Rural Heritage
+                  Rural Heritage
                 </Badge>
               </div>
             </div>
 
-            <div className="space-y-8 bg-secondary/30 p-8 rounded-[2rem] border-2 border-dashed border-primary/20">
-              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Connect Digitally</h3>
-              <div className="flex flex-col gap-6">
-                <a href="mailto:dhileep@homillu.com" className="flex items-center gap-4 text-sm font-bold hover:text-primary transition-all hover:translate-x-1 group">
-                  <div className="h-10 w-10 rounded-full bg-background flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-                    <Mail className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
-                  </div>
-                  dhileep@homillu.com
-                </a>
-                <a href="https://github.com/dhileepudu" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 text-sm font-bold hover:text-primary transition-all hover:translate-x-1 group">
-                  <div className="h-10 w-10 rounded-full bg-background flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-                    <Github className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
-                  </div>
-                  @dhileepudu
-                </a>
-                <a href="https://twitter.com/dhileepudu" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 text-sm font-bold hover:text-primary transition-all hover:translate-x-1 group">
-                  <div className="h-10 w-10 rounded-full bg-background flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-                    <Twitter className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
-                  </div>
-                  @dhileepudu
-                </a>
+            <div className="space-y-6 bg-secondary/30 p-8 rounded-[2.5rem] border-2 border-dashed border-primary/20">
+              <div className="flex items-center gap-3 mb-2">
+                <Mail className="h-5 w-5 text-primary" />
+                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/60">Get in Touch</h3>
               </div>
+              
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="name" className="text-[10px] uppercase font-black opacity-60">Your Name</Label>
+                  <Input 
+                    id="name" 
+                    {...form.register("name")}
+                    placeholder="Dhileep"
+                    className="bg-background/80 border-primary/10 focus:border-primary/40 rounded-xl"
+                  />
+                  {form.formState.errors.name && (
+                    <p className="text-[10px] text-destructive font-bold">{form.formState.errors.name.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="email" className="text-[10px] uppercase font-black opacity-60">Email Address</Label>
+                  <Input 
+                    id="email" 
+                    type="email"
+                    {...form.register("email")}
+                    placeholder="dhileepudu@gmail.com"
+                    className="bg-background/80 border-primary/10 focus:border-primary/40 rounded-xl"
+                  />
+                  {form.formState.errors.email && (
+                    <p className="text-[10px] text-destructive font-bold">{form.formState.errors.email.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="message" className="text-[10px] uppercase font-black opacity-60">Message</Label>
+                  <Textarea 
+                    id="message" 
+                    {...form.register("message")}
+                    placeholder="Tell me about your journey..."
+                    className="bg-background/80 border-primary/10 focus:border-primary/40 rounded-xl resize-none h-24"
+                  />
+                  {form.formState.errors.message && (
+                    <p className="text-[10px] text-destructive font-bold">{form.formState.errors.message.message}</p>
+                  )}
+                </div>
+
+                <Button 
+                  type="submit" 
+                  disabled={isSending}
+                  className="w-full gap-2 font-black uppercase text-[10px] tracking-widest h-12 rounded-xl shadow-lg hover:translate-y-[-2px] transition-all"
+                >
+                  {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  {isSending ? "Processing" : "Send Message"}
+                </Button>
+              </form>
             </div>
           </div>
         </CardContent>
@@ -85,7 +173,7 @@ export default function ContactsPage() {
 
       <div className="grid md:grid-cols-3 gap-8 pb-20">
         <Card className="bg-card/40 border-primary/10 p-8 flex flex-col items-center text-center gap-5 rounded-[2rem] backdrop-blur-sm">
-          <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center rotate-3 group-hover:rotate-0 transition-transform">
+          <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center rotate-3">
             <Compass className="h-8 w-8 text-primary" />
           </div>
           <div>
@@ -94,7 +182,7 @@ export default function ContactsPage() {
           </div>
         </Card>
         <Card className="bg-card/40 border-accent/10 p-8 flex flex-col items-center text-center gap-5 rounded-[2rem] backdrop-blur-sm">
-          <div className="h-16 w-16 rounded-2xl bg-accent/10 flex items-center justify-center -rotate-3 group-hover:rotate-0 transition-transform">
+          <div className="h-16 w-16 rounded-2xl bg-accent/10 flex items-center justify-center -rotate-3">
             <Heart className="h-8 w-8 text-accent" />
           </div>
           <div>
@@ -103,7 +191,7 @@ export default function ContactsPage() {
           </div>
         </Card>
         <Card className="bg-card/40 border-teal-500/10 p-8 flex flex-col items-center text-center gap-5 rounded-[2rem] backdrop-blur-sm">
-          <div className="h-16 w-16 rounded-2xl bg-teal-500/10 flex items-center justify-center rotate-6 group-hover:rotate-0 transition-transform">
+          <div className="h-16 w-16 rounded-2xl bg-teal-500/10 flex items-center justify-center rotate-6">
             <ShieldCheck className="h-8 w-8 text-teal-600" />
           </div>
           <div>
