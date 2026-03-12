@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useMemo, useCallback, useEffect } from "react";
@@ -456,13 +457,12 @@ export default function FamilyTreePage() {
             className="bg-dot-pattern"
           >
             <Background color="hsl(var(--muted-foreground))" gap={20} size={1} opacity={0.1} />
-            <Controls className="fill-primary" />
+            <Controls showInteractive={false} />
             <MiniMap 
               nodeColor={() => 'hsl(var(--primary))'}
               maskColor="rgba(0, 0, 0, 0.1)"
-              className="border-primary/20 bg-background/50 rounded-lg shadow-lg"
             />
-            <Panel position="bottom-center" className="bg-background/80 backdrop-blur-md p-4 rounded-xl border shadow-xl flex items-center gap-4">
+            <Panel position="bottom-center" className="bg-background/80 backdrop-blur-md p-4 rounded-xl border shadow-xl flex items-center gap-4 mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-0.5 bg-primary" />
                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Bloodline</span>

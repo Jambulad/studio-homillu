@@ -57,3 +57,36 @@
     @apply bg-background text-foreground transition-colors duration-300;
   }
 }
+
+/* React Flow Theming */
+.react-flow__controls {
+  @apply shadow-xl rounded-lg overflow-hidden border border-border !bg-background;
+}
+
+.react-flow__controls-button {
+  @apply !bg-background !border-b-border hover:!bg-accent/10 transition-colors !fill-foreground;
+}
+
+.react-flow__controls-button svg {
+  @apply !fill-foreground;
+}
+
+.dark .react-flow__controls-button {
+  @apply !bg-card !border-b-border hover:!bg-primary/20;
+}
+
+.dark .react-flow__controls-button svg {
+  @apply !fill-primary;
+}
+
+.react-flow__minimap {
+  @apply !bg-background/80 backdrop-blur-sm rounded-lg border border-border shadow-lg !m-4;
+}
+
+.dark .react-flow__minimap {
+  @apply !bg-card/80;
+}
+
+.react-flow__background {
+  @apply opacity-20;
+}
