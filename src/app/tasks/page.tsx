@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react";
@@ -80,7 +81,7 @@ export default function TasksPage() {
     addDocumentNonBlocking(tasksRef, taskData);
 
     // Trigger AI Notification Flow
-    if (newTask.assignee && newTask.assignee !== "Me") {
+    if (newTask.assignee && newTask.assignee !== "Me" && newTask.assignee !== "Myself") {
       setIsNotifying(true);
       try {
         const result = await sendTaskNotification({
@@ -90,14 +91,21 @@ export default function TasksPage() {
         });
         
         toast({
-          title: "Task Assigned & Notified",
-          description: `AI composed and sent a message to ${newTask.assignee}.`,
+          title: "AI Notification Prepared",
+          description: result.preview,
         });
       } catch (err) {
         console.error("Notification Error:", err);
+        toast({
+          variant: "destructive",
+          title: "Notification failed",
+          description: "Could not generate AI notification."
+        });
       } finally {
         setIsNotifying(false);
       }
+    } else {
+      toast({ title: "Task added" });
     }
 
     setNewTask({ title: "", assignee: "", recurrence: "none" });

@@ -357,6 +357,11 @@ function FamilyTreeContent() {
         const personRef = doc(firestore, "households", householdId, "persons", personForm.id);
         updateDocumentNonBlocking(personRef, personData);
         toast({ title: "Profile updated" });
+
+        // Trigger invitation if email is present and this is a "save" action
+        if (personForm.email && personForm.email.trim() !== "") {
+           triggerInvitation(personForm.name, personForm.email);
+        }
       } else {
         const personsRef = collection(firestore, "households", householdId, "persons");
         const docRef = await addDoc(personsRef, {
@@ -379,14 +384,7 @@ function FamilyTreeContent() {
         }
         
         if (personForm.email && personForm.email.trim() !== "") {
-          setIsInviting(true);
-          await sendFamilyInvitation({
-            personName: personForm.name,
-            invitedBy: user.displayName || "A Family Member",
-            householdName: `${user.displayName}'s Family`,
-            email: personForm.email
-          });
-          toast({ title: "Invitation Sent", description: `A consent email has been simulated for ${personForm.name}.` });
+          triggerInvitation(personForm.name, personForm.email);
         }
         
         toast({ title: "Member added" });
@@ -394,11 +392,32 @@ function FamilyTreeContent() {
     } catch (err) {
       console.error(err);
     } finally {
-      setIsInviting(false);
       setIsDialogOpen(false);
       resetForm();
     }
   };
+
+  const triggerInvitation = async (name: string, email: string) => {
+    if (!user) return;
+    setIsInviting(true);
+    try {
+      const result = await sendFamilyInvitation({
+        personName: name,
+        invitedBy: user.displayName || "A Family Member",
+        householdName: `${user.displayName}'s Family`,
+        email: email
+      });
+      toast({ 
+        title: "AI Invitation Prepared", 
+        description: result.preview
+      });
+    } catch (e) {
+      console.error(e);
+      toast({ variant: "destructive", title: "Invitation Error", description: "AI could not generate invitation email." });
+    } finally {
+      setIsInviting(false);
+    }
+  }
 
   const handleBulkImport = async () => {
     if (!user) {
