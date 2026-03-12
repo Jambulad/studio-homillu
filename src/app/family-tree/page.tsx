@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useMemo, useCallback, useEffect } from "react";
@@ -104,7 +103,7 @@ function FamilyTreeContent() {
   const [importStep, setImportStep] = useState("");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadedJson, setUploadedJson] = useState<any>(null);
-  const [viewMode, setViewMode] = useState<"free" | "org">("free");
+  const [viewMode, setViewMode] = useState<"free" | "org">("org");
   
   const initialPersonState: Partial<Person & { relatedToId?: string, relationType?: string }> = { 
     name: "", 
@@ -514,13 +513,13 @@ function FamilyTreeContent() {
           </div>
           <Tabs value={viewMode} onValueChange={(val: any) => setViewMode(val)} className="hidden sm:block">
             <TabsList className="bg-secondary/50 p-1">
-              <TabsTrigger value="free" className="gap-2">
-                <LayoutGrid className="h-4 w-4" />
-                Family Chart
-              </TabsTrigger>
               <TabsTrigger value="org" className="gap-2">
                 <Network className="h-4 w-4" />
                 Org Chart
+              </TabsTrigger>
+              <TabsTrigger value="free" className="gap-2">
+                <LayoutGrid className="h-4 w-4" />
+                Family Chart
               </TabsTrigger>
             </TabsList>
           </Tabs>
