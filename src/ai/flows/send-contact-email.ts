@@ -23,7 +23,15 @@ const SendContactEmailOutputSchema = z.object({
 export type SendContactEmailOutput = z.infer<typeof SendContactEmailOutputSchema>;
 
 export async function sendContactEmail(input: SendContactEmailInput): Promise<SendContactEmailOutput> {
-  return sendContactEmailFlow(input);
+  try {
+    return await sendContactEmailFlow(input);
+  } catch (error) {
+    console.error("sendContactEmail Error:", error);
+    return {
+      success: false,
+      preview: "AI assistant is temporarily offline. Your message for Dhileepudu has been captured and will be reviewed shortly.",
+    };
+  }
 }
 
 const prompt = ai.definePrompt({

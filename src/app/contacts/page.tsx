@@ -51,16 +51,24 @@ export default function ContactsPage() {
         message: data.message,
       });
       
-      toast({
-        title: "Message Sent",
-        description: result.preview,
-      });
-      form.reset();
+      if (result.success) {
+        toast({
+          title: "Message Sent",
+          description: result.preview,
+        });
+        form.reset();
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Service Note",
+          description: result.preview,
+        });
+      }
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Submission Error",
-        description: "Could not deliver your message at this time.",
+        description: "Could not deliver your message at this time. Please try again later.",
       });
     } finally {
       setIsSending(false);
