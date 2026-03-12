@@ -1,5 +1,5 @@
 /**
- * Simple lunar phase calculation utility.
+ * Simple lunar phase and traditional Vedic astronomical calculation utility.
  */
 
 export type MoonPhase = {
@@ -54,8 +54,48 @@ export function getTithi(date: Date = new Date()): string {
   const tithiNum = Math.floor(phase * 30) + 1;
   
   if (tithiNum === 1) return "Prathama";
+  if (tithiNum === 2) return "Dwitiya";
+  if (tithiNum === 3) return "Tritiya";
+  if (tithiNum === 4) return "Chaturthi";
+  if (tithiNum === 5) return "Panchami";
   if (tithiNum === 15) return "Purnima (Full Moon)";
   if (tithiNum === 30) return "Amavasya (New Moon)";
   
   return `Tithi ${tithiNum}`;
+}
+
+export function getNakshatra(date: Date = new Date()): string {
+  const Nakshatras = [
+    "Ashwini", "Bharani", "Krittika", "Rohini", "Mrigashira", "Ardra", "Punarvasu", "Pushya", "Ashlesha",
+    "Magha", "Purva Phalguni", "Uttara Phalguni", "Hasta", "Chitra", "Swati", "Vishakha", "Anuradha", "Jyeshtha",
+    "Mula", "Purva Ashadha", "Uttara Ashadha", "Shravana", "Dhanishta", "Shatabhisha", "Purva Bhadrapada", "Uttara Bhadrapada", "Revati"
+  ];
+  const phase = getMoonPhase(date).phase;
+  const index = Math.floor(phase * 27);
+  return Nakshatras[index % 27];
+}
+
+export function getRaasi(date: Date = new Date()): string {
+  const Raasis = [
+    "Mesha (Aries)", "Vrishabha (Taurus)", "Mithuna (Gemini)", "Karka (Cancer)",
+    "Simha (Leo)", "Kanya (Virgo)", "Tula (Libra)", "Vrischika (Scorpio)",
+    "Dhanu (Sagittarius)", "Makara (Capricorn)", "Kumbha (Aquarius)", "Meena (Pisces)"
+  ];
+  const phase = getMoonPhase(date).phase;
+  const index = Math.floor(phase * 12);
+  return Raasis[index % 12];
+}
+
+export function getRahukalam(date: Date = new Date()): string {
+  const day = date.getDay(); // 0 (Sun) to 6 (Sat)
+  const periods: Record<number, string> = {
+    0: "4:30 PM - 6:00 PM",
+    1: "7:30 AM - 9:00 AM",
+    2: "3:00 PM - 4:30 PM",
+    3: "12:00 PM - 1:30 PM",
+    4: "1:30 PM - 3:00 PM",
+    5: "10:30 AM - 12:00 PM",
+    6: "9:00 AM - 10:30 AM"
+  };
+  return periods[day];
 }

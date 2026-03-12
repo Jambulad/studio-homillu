@@ -20,7 +20,10 @@ import {
   ChevronLeft, 
   ChevronRight,
   Info,
-  Sparkles
+  Sparkles,
+  Zap,
+  Star,
+  Compass
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -28,7 +31,7 @@ import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebas
 import { collection, serverTimestamp, doc } from "firebase/firestore";
 import { addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { useToast } from "@/hooks/use-toast";
-import { getMoonPhase, getTithi } from "@/lib/lunar-utils";
+import { getMoonPhase, getTithi, getNakshatra, getRaasi, getRahukalam } from "@/lib/lunar-utils";
 import { cn } from "@/lib/utils";
 
 const DUMMY_EVENTS = [
@@ -77,6 +80,9 @@ export default function CalendarPage() {
 
   const moonInfo = getMoonPhase(selectedDate);
   const tithi = getTithi(selectedDate);
+  const nakshatra = getNakshatra(selectedDate);
+  const raasi = getRaasi(selectedDate);
+  const rahukalam = getRahukalam(selectedDate);
 
   const handleAddEvent = () => {
     if (!user) {
@@ -331,7 +337,7 @@ export default function CalendarPage() {
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
               ) : (
-                <ScrollArea className="h-[350px]">
+                <ScrollArea className="h-[250px]">
                   {selectedDayEvents.length > 0 ? (
                     <div className="p-4 space-y-4">
                       {selectedDayEvents.map((event: any) => {
@@ -391,22 +397,44 @@ export default function CalendarPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-muted/50">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                <Info className="h-4 w-4 text-accent" />
+          {/* Traditional Context Card */}
+          <Card className="border-muted/50 shadow-sm">
+            <CardHeader className="pb-2 bg-accent/5">
+              <CardTitle className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-accent">
+                <Info className="h-4 w-4" />
                 Traditional Context
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 text-xs font-medium">
+            <CardContent className="space-y-3 py-4 text-xs font-medium">
               <div className="flex justify-between items-center border-b pb-2 border-dashed">
-                <span className="text-muted-foreground">Vedic Tithi</span>
+                <span className="text-muted-foreground flex items-center gap-1.5">
+                  <Moon className="h-3 w-3" /> Vedic Tithi
+                </span>
                 <span className="font-bold text-primary">{tithi}</span>
               </div>
               <div className="flex justify-between items-center border-b pb-2 border-dashed">
-                <span className="text-muted-foreground">Auspicious Window</span>
-                <span className="font-bold text-green-600 flex items-center gap-1">
-                  <Sparkles className="h-3 w-3" />
+                <span className="text-muted-foreground flex items-center gap-1.5">
+                  <Star className="h-3 w-3" /> Star (Nakshatra)
+                </span>
+                <span className="font-bold text-primary">{nakshatra}</span>
+              </div>
+              <div className="flex justify-between items-center border-b pb-2 border-dashed">
+                <span className="text-muted-foreground flex items-center gap-1.5">
+                  <Compass className="h-3 w-3" /> Moon Sign (Raasi)
+                </span>
+                <span className="font-bold text-primary">{raasi}</span>
+              </div>
+              <div className="flex justify-between items-center border-b pb-2 border-dashed">
+                <span className="text-muted-foreground flex items-center gap-1.5">
+                  <Zap className="h-3 w-3" /> Rahukalam
+                </span>
+                <span className="font-bold text-destructive">{rahukalam}</span>
+              </div>
+              <div className="flex justify-between items-center pt-1">
+                <span className="text-muted-foreground flex items-center gap-1.5">
+                  <Sparkles className="h-3 w-3" /> Auspicious
+                </span>
+                <span className="font-bold text-green-600">
                   Open
                 </span>
               </div>
