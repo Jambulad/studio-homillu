@@ -6,9 +6,9 @@ service cloud.firestore {
      * HOMILLU SECURITY RULES - PROTOTYPING MODE
      * 
      * CORE PHILOSOPHY:
-     * This ruleset enforces a strict user-ownership and shared-household model. Security is 
-     * prioritized through path-based authorization for individual users and member-map 
-     * validation for shared household data. 
+     * This ruleset enforces a strict user-ownership and shared-household model. 
+     * Security is prioritized through path-based authorization for individual users 
+     * and member-map validation for shared household data.
      */
 
     // --- GLOBAL HELPER FUNCTIONS ---
@@ -25,7 +25,7 @@ service cloud.firestore {
       return resource != null && isOwner(userId);
     }
 
-    // Checks if the user is a member of a household based on the 'members' map in a document
+    // Checks if the user is a member of a household based on the 'members' map
     function isMemberInMap(membersMap) {
       return isSignedIn() && (membersMap[request.auth.uid] != null || membersMap.admin == request.auth.uid);
     }
@@ -38,18 +38,19 @@ service cloud.firestore {
     }
 
     // --- COLLECTION GROUP RULES (For Invitations) ---
-    // This MUST be defined at a path that the collection group query matches.
-    // Recursive wildcards are required for collectionGroup queries to be authorized.
+    // These rules are required for queries that search across all households.
     match /{path=**}/persons/{personId} {
-      // Allow the list operation (query) if the user is signed in.
-      // The rules engine will verify the query filters against the data-level checks.
-      allow list: if isSignedIn() && request.auth.token.email != null;
+      // Allow listing ONLY if the query filter strictly matches the user's authenticated email.
+      // This satisfies the "safety proof" required by the Firestore rules engine for collection groups.
+      allow list: if isSignedIn() && 
+                    request.auth.token.email != null && 
+                    request.query.filters.email == request.auth.token.email;
       
-      // Allow getting individual documents if the email matches.
+      // Allow reading individual documents if the email matches.
       allow get: if isSignedIn() && 
                     resource.data.email == request.auth.token.email;
       
-      // Allow the user to confirm their own participation.
+      // Allow a user to confirm their own participation status.
       allow update: if isSignedIn() && 
                       resource.data.email == request.auth.token.email && 
                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isConfirmed']);
@@ -68,8 +69,11 @@ service cloud.firestore {
       allow get: if (isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.members);
       allow list: if false; 
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      allow update: if resource != null && ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.members)) && request.resource.data.ownerId == resource.data.ownerId;
-      allow delete: if (resource != null && resource.data.ownerId == request.auth.uid) || (isSignedIn() && request.auth.uid == householdId);
+      allow update: if resource != null && 
+                      ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.members)) && 
+                      request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if (resource != null && resource.data.ownerId == request.auth.uid) || 
+                      (isSignedIn() && request.auth.uid == householdId);
     }
 
     // --- HOUSEHOLD SUBCOLLECTIONS ---
@@ -77,11 +81,24 @@ service cloud.firestore {
       function isHouseholdSubcollection() {
         return collection in ['tasks', 'shoppingListItems', 'calendarEvents', 'persons', 'relationships', 'moments'];
       }
-      allow get: if isHouseholdSubcollection() && ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.householdMembers));
+      
+      allow get: if isHouseholdSubcollection() && 
+                    ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.householdMembers));
+      
       allow list: if isHouseholdSubcollection() && checkHouseholdMembership(householdId);
-      allow create: if isHouseholdSubcollection() && checkHouseholdMembership(householdId) && request.resource.data.householdId == householdId;
-      allow update: if isHouseholdSubcollection() && resource != null && ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.householdMembers)) && request.resource.data.householdId == resource.data.householdId;
-      allow delete: if isHouseholdSubcollection() && resource != null && ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.householdMembers));
+      
+      allow create: if isHouseholdSubcollection() && 
+                      checkHouseholdMembership(householdId) && 
+                      request.resource.data.householdId == householdId;
+      
+      allow update: if isHouseholdSubcollection() && 
+                      resource != null && 
+                      ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.householdMembers)) && 
+                      request.resource.data.householdId == resource.data.householdId;
+      
+      allow delete: if isHouseholdSubcollection() && 
+                      resource != null && 
+                      ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.householdMembers));
     }
 
     // --- DEFAULT DENY ---

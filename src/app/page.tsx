@@ -79,7 +79,7 @@ export default function DashboardPage() {
 
   const invitationsQuery = useMemoFirebase(() => {
     // Only attempt the query if we have a stabilized user email.
-    // This prevents rule evaluation errors during auth transition.
+    // The collectionGroup security rule requires an explicit email filter.
     if (!firestore || !user?.email || user.email.trim() === "") return null;
     
     return query(
