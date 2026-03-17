@@ -12,15 +12,17 @@ import {
   ChevronRight,
   TrendingUp,
   Moon,
-  Database
+  Database,
+  Sparkles
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { getMoonPhase } from "@/lib/lunar-utils";
 import { useState, useEffect } from "react";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
+import { collection, collectionGroup, query, where } from "firebase/firestore";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 
 const DUMMY_TASKS = [
   { id: "d1", title: "Water the indoor plants", isCompleted: false },
@@ -46,6 +48,7 @@ export default function DashboardPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const firestore = useFirestore();
+  const { toast } = useToast();
   const [moonData, setMoonData] = useState<ReturnType<typeof getMoonPhase> | null>(null);
 
   useEffect(() => {
@@ -69,9 +72,38 @@ export default function DashboardPage() {
     return collection(firestore, "households", householdId, "persons");
   }, [firestore, user, householdId]);
 
+  // Listener for tasks assigned to the current user across ALL households
+  const assignedTasksQuery = useMemoFirebase(() => {
+    if (!firestore || !user?.email) return null;
+    return query(
+      collectionGroup(firestore, "tasks"),
+      where("assignedToEmail", "==", user.email),
+      where("isCompleted", "==", false)
+    );
+  }, [firestore, user?.email]);
+
   const { data: tasks, isLoading: tasksLoading } = useCollection(tasksQuery);
   const { data: shopping, isLoading: shoppingLoading } = useCollection(shoppingQuery);
   const { data: persons, isLoading: personsLoading } = useCollection(personsQuery);
+  const { data: assignedTasks } = useCollection(assignedTasksQuery);
+
+  // Trigger notification when new tasks are found
+  useEffect(() => {
+    if (assignedTasks && assignedTasks.length > 0) {
+      const task = assignedTasks[0];
+      toast({
+        title: "New Task Assigned!",
+        description: `You have ${assignedTasks.length} pending task(s). First up: ${task.title}`,
+        action: (
+          <Link href="/tasks">
+            <Button size="sm" variant="outline" className="gap-2 font-bold uppercase text-[10px] tracking-widest">
+              View Tasks
+            </Button>
+          </Link>
+        ),
+      });
+    }
+  }, [assignedTasks, toast]);
 
   const displayTasks = user ? (tasks || []) : DUMMY_TASKS;
   const displayShopping = user ? (shopping || []) : DUMMY_ITEMS;
@@ -105,6 +137,26 @@ export default function DashboardPage() {
           </p>
         </div>
       </div>
+
+      {assignedTasks && assignedTasks.length > 0 && (
+        <div className="bg-primary/10 border border-primary/20 p-6 rounded-3xl flex items-center justify-between gap-4 shadow-sm animate-in slide-in-from-top-4">
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center animate-bounce">
+              <Sparkles className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-primary uppercase tracking-tight">Active Assignments</h2>
+              <p className="text-sm text-muted-foreground font-medium">You have {assignedTasks.length} task(s) assigned by your family.</p>
+            </div>
+          </div>
+          <Link href="/tasks">
+            <Button className="gap-2 font-bold uppercase text-xs tracking-widest px-6 shadow-md">
+              Check My Tasks
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {widgets.map((widget) => (

@@ -65,11 +65,18 @@ export default function TasksPage() {
     }
     if (!newTask.title) return;
 
+    // Find selected person to get their email for notifications
+    const selectedPerson = cloudPersons?.find(p => p.id === newTask.assignee);
+    const assignedName = selectedPerson ? selectedPerson.name : (newTask.assignee === "Me" ? (user.displayName || "Me") : newTask.assignee);
+    const assignedEmail = selectedPerson?.email || "";
+
     const taskData = {
       householdId,
       title: newTask.title,
       description: "",
-      assignedToId: newTask.assignee || user.displayName || "Me",
+      assignedToId: newTask.assignee || user.uid || "Me",
+      assignedToName: assignedName,
+      assignedToEmail: assignedEmail,
       isCompleted: false,
       recurrence: newTask.recurrence,
       createdAt: serverTimestamp(),
@@ -80,27 +87,23 @@ export default function TasksPage() {
     const tasksRef = collection(firestore, "households", householdId, "tasks");
     addDocumentNonBlocking(tasksRef, taskData);
 
-    // Trigger AI Notification Flow
+    // Trigger AI Notification Flow if assigned to someone else
     if (newTask.assignee && newTask.assignee !== "Me" && newTask.assignee !== "Myself") {
       setIsNotifying(true);
       try {
-        const result = await sendTaskNotification({
+        await sendTaskNotification({
           taskTitle: newTask.title,
-          assigneeName: newTask.assignee,
-          assignedBy: user.displayName || "A Family Member"
+          assigneeName: assignedName,
+          assignedBy: user.displayName || "A Family Member",
+          email: assignedEmail || undefined
         });
         
         toast({
-          title: "AI Notification Prepared",
-          description: result.preview,
+          title: "Task Assigned",
+          description: `Assigned to ${assignedName}. ${assignedEmail ? "They will be notified by email." : ""}`,
         });
       } catch (err) {
         console.error("Notification Error:", err);
-        toast({
-          variant: "destructive",
-          title: "Notification failed",
-          description: "Could not generate AI notification."
-        });
       } finally {
         setIsNotifying(false);
       }
@@ -173,7 +176,7 @@ export default function TasksPage() {
                   <SelectContent>
                     <SelectItem value="Me">Myself</SelectItem>
                     {displayPersons?.map((person: any) => (
-                      <SelectItem key={person.id} value={person.name}>
+                      <SelectItem key={person.id} value={person.id}>
                         {person.name}
                       </SelectItem>
                     ))}
@@ -186,14 +189,14 @@ export default function TasksPage() {
                 </Select>
                 <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-1">
                   <Sparkles className="h-3 w-3 text-primary" />
-                  AI will send an encouraging notification to the assignee.
+                  AI will notify the assignee when they log in.
                 </p>
               </div>
             </div>
             <DialogFooter>
               <Button onClick={handleAddTask} disabled={isNotifying} className="gap-2 font-bold min-w-[120px]">
                 {isNotifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                {isNotifying ? "Notifying..." : t("common.add")}
+                {isNotifying ? "Processing..." : t("common.add")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -232,7 +235,7 @@ export default function TasksPage() {
                     <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1.5 bg-secondary/50 px-2 py-0.5 rounded-full font-medium">
                         <User className="h-3.5 w-3.5 text-primary" />
-                        {task.assignedToId === user?.uid ? "Me" : task.assignedToId}
+                        {task.assignedToId === user?.uid || task.assignedToId === 'Me' ? "Me" : (task.assignedToName || task.assignedToId)}
                       </span>
                       {task.recurrence !== 'none' && (
                         <span className="flex items-center gap-1.5">

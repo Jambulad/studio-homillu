@@ -7,8 +7,6 @@ service cloud.firestore {
      * HOMILLU SECURITY RULES - STABILITY MODE
      * 
      * Enforces strict user-ownership and shared-household model.
-     * Permission-heavy features like Collection Group queries are restricted 
-     * to ensure dashboard stability.
      */
 
     // --- GLOBAL HELPER FUNCTIONS ---
@@ -25,16 +23,23 @@ service cloud.firestore {
       return resource != null && isOwner(userId);
     }
 
-    // Checks if the user is a member of a household based on the 'members' map
     function isMemberInMap(membersMap) {
       return isSignedIn() && (membersMap[request.auth.uid] != null || membersMap.admin == request.auth.uid);
     }
 
-    // Checks membership of a household by reading the parent household document
     function checkHouseholdMembership(householdId) {
       return (isSignedIn() && request.auth.uid == householdId) || 
              (exists(/databases/$(database)/documents/households/$(householdId)) && 
               isMemberInMap(get(/databases/$(database)/documents/households/$(householdId)).data.members));
+    }
+
+    // --- COLLECTION GROUP RULES ---
+    
+    // Allows users to find tasks assigned to them by email across all households
+    match /{path=**}/tasks/{taskId} {
+      allow list: if isSignedIn() && 
+                   request.auth.token.email != null && 
+                   resource.data.assignedToEmail == request.auth.token.email;
     }
 
     // --- USER PROFILES ---
