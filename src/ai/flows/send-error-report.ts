@@ -1,8 +1,6 @@
 'use server';
 /**
- * @fileOverview An AI flow that formats and "sends" technical error reports to the owner.
- *
- * - sendErrorReport - A function that processes an error report.
+ * @fileOverview An AI flow that formats and reports technical errors to the owner.
  */
 
 import { ai } from '@/ai/genkit';
@@ -22,7 +20,20 @@ const SendErrorReportOutputSchema = z.object({
 });
 
 export async function sendErrorReport(input: SendErrorReportInput) {
-  return sendErrorReportFlow(input);
+  try {
+    const hasApiKey = !!(process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY);
+    
+    if (!hasApiKey) {
+      console.log(`[SYSTEM ERROR LOGGED]: ${input.message} (Type: ${input.type})`);
+      return { success: true, reportPreview: "Error logged to console (No AI API Key)." };
+    }
+
+    return await sendErrorReportFlow(input);
+  } catch (e) {
+    // Avoid infinite error loops by just logging to console if reporting fails
+    console.error("Critical: Error Reporting Flow Failed:", e);
+    console.error("Original Error:", input.message);
+  }
 }
 
 const sendErrorReportFlow = ai.defineFlow(
@@ -33,27 +44,23 @@ const sendErrorReportFlow = ai.defineFlow(
   },
   async (input) => {
     const { text } = await ai.generate({
-      prompt: `You are a specialized system monitor for Dhileepudu's "HomIllu" application.
-      An error has occurred in the application and we need to report it to him at dhileepudu@gmail.com.
+      prompt: `You are a technical monitor for Dhileepudu's "HomIllu" app.
+      An error occurred that needs reporting to dhileepudu@gmail.com.
       
-      Error Details:
-      - Type: ${input.type || 'Unknown'}
-      - Message: ${input.message}
-      - Context: ${JSON.stringify(input.context || {})}
+      Error: ${input.message}
+      Type: ${input.type || 'Unknown'}
+      Context: ${JSON.stringify(input.context || {})}
       
-      Write a clear, structured technical alert email. 
-      The tone should be professional and urgent. 
-      Summarize what happened, why it might have happened, and what Dhileepudu should check.
-      Keep it concise.`,
+      Summarize what happened and what Dhileepudu should investigate. Keep it technical and brief.`,
     });
 
-    const reportPreview = text || "Error report generated.";
+    const reportPreview = text || "Technical error report generated.";
     
-    // Log for the "Owner" (Simulated email delivery)
-    console.log(`[ERROR REPORT ROUTED TO dhileepudu@gmail.com]:\n${reportPreview}`);
-    if (input.stack) {
-      console.log(`[STACK TRACE]:\n${input.stack}`);
-    }
+    console.log("------------------------------------------------");
+    console.log(`[TECHNICAL ALERT ROUTED TO dhileepudu@gmail.com]`);
+    console.log(`SUMMARY: ${reportPreview}`);
+    if (input.stack) console.log(`STACK: ${input.stack.split('\n')[0]}...`);
+    console.log("------------------------------------------------");
 
     return {
       success: true,
