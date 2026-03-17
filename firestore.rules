@@ -9,22 +9,6 @@ service cloud.firestore {
      * This ruleset enforces a strict user-ownership and shared-household model. Security is 
      * prioritized through path-based authorization for individual users and member-map 
      * validation for shared household data. 
-     *
-     * DATA STRUCTURE:
-     * - /users/{userId}: Private user profiles and settings.
-     * - /households/{householdId}: Collaborative hubs for families/groups.
-     * - /households/{householdId}/{subcollection}: Tasks, shopping lists, calendar events, 
-     *   and family tree data belonging to a specific household.
-     *
-     * KEY SECURITY DECISIONS:
-     * 1. Authorization Independence: Subcollection documents are intended to hold a 
-     *    denormalized 'householdMembers' map for fast 'get' operations.
-     * 2. Parent-Based List Security: Since 'resource' is restricted for list operations, 
-     *    membership is verified by performing a 'get()' on the parent household document.
-     * 3. Relational Integrity: On creation, we enforce that internal IDs (e.g., householdId) 
-     *    match the collection path to prevent data cross-contamination.
-     * 4. Immutable Links: Core relational fields like 'ownerId' or 'householdId' are 
-     *    immutable after creation.
      */
 
     // --- GLOBAL HELPER FUNCTIONS ---
@@ -48,22 +32,12 @@ service cloud.firestore {
 
     // Checks membership of a household by reading the parent household document
     function checkHouseholdMembership(householdId) {
-      // Allow if the user is accessing their own private household (ID == UID)
-      // OR if they are explicitly listed in the members map of a shared household
       return (isSignedIn() && request.auth.uid == householdId) || 
              (exists(/databases/$(database)/documents/households/$(householdId)) && 
               isMemberInMap(get(/databases/$(database)/documents/households/$(householdId)).data.members));
     }
 
     // --- USER PROFILES ---
-
-    /**
-     * @description Rules for personal user profiles. Users can only access their own data.
-     * @path /users/{userId}
-     * @allow User 'A' reading their own profile (get).
-     * @deny User 'A' trying to list all profiles in the /users collection.
-     * @principle Enforces strict ownership and path-based authorization.
-     */
     match /users/{userId} {
       allow get, list: if isOwner(userId);
       allow create: if isOwner(userId) && request.resource.data.id == userId;
@@ -72,53 +46,32 @@ service cloud.firestore {
     }
 
     // --- HOUSEHOLDS ---
-
-    /**
-     * @description Rules for Household documents. Access is governed by the 'members' map.
-     * @path /households/{householdId}
-     * @allow A member listed in the 'members' map reading the household details.
-     * @deny An authenticated user who is not a member trying to read the document.
-     * @principle Shared access via member-role mapping.
-     */
     match /households/{householdId} {
       allow get: if (isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.members);
-      allow list: if false; // Global listing of households is denied; users find IDs via their profile.
+      allow list: if false; 
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
       allow update: if resource != null && ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.members)) && request.resource.data.ownerId == resource.data.ownerId;
       allow delete: if (resource != null && resource.data.ownerId == request.auth.uid) || (isSignedIn() && request.auth.uid == householdId);
     }
 
-    // --- HOUSEHOLD SUBCOLLECTIONS (Tasks, Shopping, Calendar, People, Relationships, Moments) ---
-
-    /**
-     * @description Shared subcollections under a household. 
-     * @path /households/{householdId}/tasks/{taskId}
-     * @path /households/{householdId}/shoppingListItems/{itemId}
-     * @path /households/{householdId}/calendarEvents/{eventId}
-     * @path /households/{householdId}/persons/{personId}
-     * @path /households/{householdId}/relationships/{relId}
-     * @path /households/{householdId}/moments/{momentId}
-     * @allow A member of household 'H' listing tasks within household 'H'.
-     * @deny User 'B' creating a task in household 'A' if they aren't a member.
-     * @principle Relational integrity and shared access verified via parent document lookup.
-     */
+    // --- HOUSEHOLD SUBCOLLECTIONS ---
     match /households/{householdId}/{collection}/{docId} {
-      
-      // Helper to ensure we only apply these rules to valid household subcollections
       function isHouseholdSubcollection() {
         return collection in ['tasks', 'shoppingListItems', 'calendarEvents', 'persons', 'relationships', 'moments'];
       }
-
       allow get: if isHouseholdSubcollection() && ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.householdMembers));
-      
-      // List operations use the parent document lookup or UID comparison as 'resource' is unavailable
       allow list: if isHouseholdSubcollection() && checkHouseholdMembership(householdId);
-      
       allow create: if isHouseholdSubcollection() && checkHouseholdMembership(householdId) && request.resource.data.householdId == householdId;
-      
       allow update: if isHouseholdSubcollection() && resource != null && ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.householdMembers)) && request.resource.data.householdId == resource.data.householdId;
-      
       allow delete: if isHouseholdSubcollection() && resource != null && ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.householdMembers));
+    }
+
+    // --- COLLECTION GROUP RULES (For Invitations) ---
+    match /{path=**}/persons/{personId} {
+      // Allow users to find their own person record across households via email
+      allow list: if isSignedIn() && request.auth.token.email != null && resource.data.email == request.auth.token.email;
+      // Allow the user to confirm their own participation
+      allow update: if isSignedIn() && resource.data.email == request.auth.token.email && request.resource.data.isConfirmed == true;
     }
 
     // --- DEFAULT DENY ---

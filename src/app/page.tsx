@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useTranslation } from "react-i18next";
@@ -12,15 +11,21 @@ import {
   ChevronRight,
   TrendingUp,
   Moon,
-  Database
+  Database,
+  Users,
+  CheckCircle2,
+  Loader2
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { getMoonPhase } from "@/lib/lunar-utils";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
+import { collection, collectionGroup, query, where, doc, updateDoc } from "firebase/firestore";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 // Synchronized dummy data constants to match sub-pages
 const DUMMY_TASKS = [
@@ -47,7 +52,10 @@ export default function DashboardPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const firestore = useFirestore();
+  const { toast } = useToast();
   const [moonData, setMoonData] = useState<ReturnType<typeof getMoonPhase> | null>(null);
+  const [invitation, setInvitation] = useState<any | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   useEffect(() => {
     setMoonData(getMoonPhase());
@@ -55,6 +63,7 @@ export default function DashboardPage() {
 
   const householdId = user?.uid || "default";
 
+  // Real-time data queries
   const tasksQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return collection(firestore, "households", householdId, "tasks");
@@ -70,59 +79,73 @@ export default function DashboardPage() {
     return collection(firestore, "households", householdId, "persons");
   }, [firestore, user, householdId]);
 
+  // Invitation Search Logic
+  const invitationsQuery = useMemoFirebase(() => {
+    if (!firestore || !user?.email) return null;
+    return query(
+      collectionGroup(firestore, "persons"),
+      where("email", "==", user.email),
+      where("isConfirmed", "==", false)
+    );
+  }, [firestore, user?.email]);
+
   const { data: tasks, isLoading: tasksLoading } = useCollection(tasksQuery);
   const { data: shopping, isLoading: shoppingLoading } = useCollection(shoppingQuery);
   const { data: persons, isLoading: personsLoading } = useCollection(personsQuery);
+  const { data: pendingInvitations } = useCollection(invitationsQuery);
+
+  // Check for the first unconfirmed invitation
+  useEffect(() => {
+    if (pendingInvitations && pendingInvitations.length > 0) {
+      setInvitation(pendingInvitations[0]);
+    } else {
+      setInvitation(null);
+    }
+  }, [pendingInvitations]);
+
+  const handleConfirmInvitation = async () => {
+    if (!invitation || !firestore) return;
+    setIsConfirming(true);
+    try {
+      const personRef = doc(firestore, "households", invitation.householdId, "persons", invitation.id);
+      await updateDoc(personRef, { isConfirmed: true });
+      
+      toast({
+        title: "Welcome to the Family!",
+        description: `You are now a confirmed member of ${invitation.householdName || "the family"} hub.`,
+      });
+      setInvitation(null);
+    } catch (error) {
+      console.error("Confirmation Error:", error);
+      toast({
+        variant: "destructive",
+        title: "Confirmation Failed",
+        description: "We couldn't verify your membership at this time.",
+      });
+    } finally {
+      setIsConfirming(false);
+    }
+  };
 
   // Use cloud data if logged in, otherwise use dummy data
   const displayTasks = user ? (tasks || []) : DUMMY_TASKS;
   const displayShopping = user ? (shopping || []) : DUMMY_ITEMS;
   const displayPersons = user ? (persons || []) : DUMMY_PERSONS;
 
-  const pendingTasks = displayTasks.filter((t: any) => !t.isCompleted).length;
-  const shoppingItems = displayShopping.length;
+  const pendingTasksCount = displayTasks.filter((t: any) => !t.isCompleted).length;
+  const shoppingItemsCount = displayShopping.length;
   const personCount = displayPersons.length;
 
   const taskCompletionRate = displayTasks.length > 0 
-    ? Math.round(((displayTasks.length - pendingTasks) / displayTasks.length) * 100) 
+    ? Math.round(((displayTasks.length - pendingTasksCount) / displayTasks.length) * 100) 
     : 0;
 
   const widgets = [
-    { 
-      title: t("nav.tasks"), 
-      description: tasksLoading && user ? "..." : `${pendingTasks} tasks pending`, 
-      icon: CheckSquare, 
-      color: "text-primary", 
-      href: "/tasks" 
-    },
-    { 
-      title: t("nav.shopping"), 
-      description: shoppingLoading && user ? "..." : `${shoppingItems} items on list`, 
-      icon: ShoppingBag, 
-      color: "text-accent", 
-      href: "/shopping" 
-    },
-    { 
-      title: t("nav.calendar"), 
-      description: "Family schedule", 
-      icon: Calendar, 
-      color: "text-orange-500", 
-      href: "/calendar" 
-    },
-    { 
-      title: t("nav.tree"), 
-      description: personsLoading && user ? "..." : `${personCount} family members`, 
-      icon: GitBranch, 
-      color: "text-teal-600", 
-      href: "/family-tree" 
-    },
-    { 
-      title: t("nav.moments"), 
-      description: "Milestones", 
-      icon: Clock, 
-      color: "text-pink-500", 
-      href: "/moments" 
-    }
+    { title: t("nav.tasks"), description: tasksLoading && user ? "..." : `${pendingTasksCount} tasks pending`, icon: CheckSquare, color: "text-primary", href: "/tasks" },
+    { title: t("nav.shopping"), description: shoppingLoading && user ? "..." : `${shoppingItemsCount} items on list`, icon: ShoppingBag, color: "text-accent", href: "/shopping" },
+    { title: t("nav.calendar"), description: "Family schedule", icon: Calendar, color: "text-orange-500", href: "/calendar" },
+    { title: t("nav.tree"), description: personsLoading && user ? "..." : `${personCount} family members`, icon: GitBranch, color: "text-teal-600", href: "/family-tree" },
+    { title: t("nav.moments"), description: "Milestones", icon: Clock, color: "text-pink-500", href: "/moments" }
   ];
 
   return (
@@ -239,6 +262,35 @@ export default function DashboardPage() {
           </Card>
         )}
       </div>
+
+      {/* Invitation Dialog */}
+      <Dialog open={!!invitation} onOpenChange={() => setInvitation(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold flex items-center gap-3">
+              <Users className="h-7 w-7 text-primary" />
+              Family Invitation
+            </DialogTitle>
+            <DialogDescription className="text-lg pt-2">
+              <span className="font-bold text-foreground">{invitation?.name}</span>, you have been added to a digital family tree!
+            </DialogDescription>
+          </DialogHeader>
+          <div className="bg-secondary/20 p-6 rounded-2xl border border-dashed border-primary/20 my-4 text-center">
+            <p className="text-muted-foreground leading-relaxed italic">
+              "Every family story deserves to be preserved. By confirming, you'll be part of the shared heritage and collaboration hub."
+            </p>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-3">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setInvitation(null)}>
+              Maybe Later
+            </Button>
+            <Button className="w-full sm:w-auto gap-2 font-bold px-8" onClick={handleConfirmInvitation} disabled={isConfirming}>
+              {isConfirming ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              {isConfirming ? "Confirming..." : "Confirm & Join"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
