@@ -4,12 +4,12 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { CheckSquare, Plus, Clock, User, Trash2, Loader2, Sparkles, Send, Calendar as CalendarIcon } from "lucide-react";
+import { CheckSquare, Plus, Clock, User, Trash2, Loader2, Send, Calendar as CalendarIcon, Pencil } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, serverTimestamp, doc, Timestamp } from "firebase/firestore";
+import { collection, serverTimestamp, doc } from "firebase/firestore";
 import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -17,19 +17,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { sendTaskNotification } from "@/ai/flows/send-task-notification";
-import { format } from "date-fns";
 
 const DUMMY_TASKS = [
-  { id: "d1", title: "Water the indoor plants", assignedToId: "Jambula Chandraiah", recurrence: "Daily", isCompleted: false, dueDate: new Date().toISOString() },
-  { id: "d2", title: "Buy groceries for dinner", assignedToId: "Me", recurrence: "None", isCompleted: true, dueDate: new Date().toISOString() },
-  { id: "d3", title: "Clean the backyard", assignedToId: "Jambula Latha", recurrence: "Weekly", isCompleted: false, dueDate: new Date().toISOString() },
-];
-
-const DUMMY_PERSONS = [
-  { id: "p1", name: "Jambula Chandraiah" },
-  { id: "p2", name: "Jambula Laxmamma" },
-  { id: "p3", name: "Jambula Sreerama Murthy" },
-  { id: "p4", name: "Jambula Latha" },
+  { id: "d1", title: "Water the indoor plants", assignedToId: "Jambula Chandraiah", recurrence: "Daily", isCompleted: false, dueDate: new Date().toISOString().split('T')[0] },
+  { id: "d2", title: "Buy groceries for dinner", assignedToId: "Me", recurrence: "None", isCompleted: true, dueDate: new Date().toISOString().split('T')[0] },
+  { id: "d3", title: "Clean the backyard", assignedToId: "Jambula Latha", recurrence: "Weekly", isCompleted: false, dueDate: new Date().toISOString().split('T')[0] },
 ];
 
 export default function TasksPage() {
@@ -37,9 +29,14 @@ export default function TasksPage() {
   const firestore = useFirestore();
   const { user } = useUser();
   const { toast } = useToast();
-  const [isAddOpen, setIsAddOpen] = useState(false);
+  
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [isNotifying, setIsNotifying] = useState(false);
-  const [newTask, setNewTask] = useState({ title: "", assignee: "", recurrence: "none", dueDate: "" });
+  
+  const initialTaskState = { title: "", assignee: "", recurrence: "none", dueDate: "" };
+  const [taskForm, setTaskForm] = useState(initialTaskState);
 
   const householdId = user?.uid || "placeholder";
 
@@ -54,65 +51,88 @@ export default function TasksPage() {
   }, [firestore, user, householdId]);
 
   const { data: cloudTasks, isLoading: tasksLoading } = useCollection(tasksQuery);
-  const { data: cloudPersons, isLoading: personsLoading } = useCollection(personsQuery);
+  const { data: cloudPersons } = useCollection(personsQuery);
 
   const displayTasks = user ? cloudTasks : DUMMY_TASKS;
-  const displayPersons = user ? cloudPersons : DUMMY_PERSONS;
+  const displayPersons = user ? (cloudPersons || []) : [];
 
-  const handleAddTask = async () => {
+  const handleSaveTask = async () => {
     if (!user) {
-      toast({ title: "Sign in required", description: "Please sign in to save your family tasks." });
+      toast({ title: "Sign in required", description: "Please sign in to manage your family tasks." });
       return;
     }
-    if (!newTask.title) return;
+    if (!taskForm.title) return;
 
-    const selectedPerson = cloudPersons?.find(p => p.id === newTask.assignee);
-    const assignedName = selectedPerson ? selectedPerson.name : (newTask.assignee === "Me" ? (user.displayName || "Me") : newTask.assignee);
+    const selectedPerson = displayPersons.find(p => p.id === taskForm.assignee);
+    const assignedName = selectedPerson ? selectedPerson.name : (taskForm.assignee === "Me" ? (user.displayName || "Me") : taskForm.assignee);
     const assignedEmail = selectedPerson?.email || "";
 
-    const taskData = {
+    const taskData: any = {
       householdId,
-      title: newTask.title,
-      description: "",
-      assignedToId: newTask.assignee || user.uid || "Me",
+      title: taskForm.title,
+      assignedToId: taskForm.assignee || user.uid || "Me",
       assignedToName: assignedName,
       assignedToEmail: assignedEmail,
-      isCompleted: false,
-      recurrence: newTask.recurrence,
-      dueDate: newTask.dueDate || null,
-      createdAt: serverTimestamp(),
-      createdByUserId: user.uid,
+      recurrence: taskForm.recurrence,
+      dueDate: taskForm.dueDate || null,
+      updatedAt: serverTimestamp(),
       householdMembers: { [user.uid]: "admin" }
     };
 
-    const tasksRef = collection(firestore, "households", householdId, "tasks");
-    addDocumentNonBlocking(tasksRef, taskData);
+    try {
+      if (isEditMode && editingTaskId) {
+        const taskRef = doc(firestore, "households", householdId, "tasks", editingTaskId);
+        updateDocumentNonBlocking(taskRef, taskData);
+        toast({ title: "Task updated" });
+      } else {
+        const tasksRef = collection(firestore, "households", householdId, "tasks");
+        addDocumentNonBlocking(tasksRef, {
+          ...taskData,
+          isCompleted: false,
+          createdAt: serverTimestamp(),
+          createdByUserId: user.uid,
+        });
 
-    if (newTask.assignee && newTask.assignee !== "Me" && newTask.assignee !== "Myself") {
-      setIsNotifying(true);
-      try {
-        await sendTaskNotification({
-          taskTitle: newTask.title,
-          assigneeName: assignedName,
-          assignedBy: user.displayName || "A Family Member",
-          email: assignedEmail || undefined
-        });
-        
-        toast({
-          title: "Task Assigned",
-          description: `Assigned to ${assignedName}. ${assignedEmail ? "They will be notified by email." : ""}`,
-        });
-      } catch (err) {
-        console.error("Notification Error:", err);
-      } finally {
-        setIsNotifying(false);
+        // Notify if assigned to someone else
+        if (taskForm.assignee && taskForm.assignee !== "Me" && taskForm.assignee !== user.uid) {
+          setIsNotifying(true);
+          try {
+            await sendTaskNotification({
+              taskTitle: taskForm.title,
+              assigneeName: assignedName,
+              assignedBy: user.displayName || "A Family Member",
+              email: assignedEmail || undefined
+            });
+            toast({ title: "Notification Sent", description: `Assigned to ${assignedName}.` });
+          } catch (err) {
+            console.error("Notification Error:", err);
+          } finally {
+            setIsNotifying(false);
+          }
+        } else {
+          toast({ title: "Task added" });
+        }
       }
-    } else {
-      toast({ title: "Task added" });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setTaskForm(initialTaskState);
+      setIsDialogOpen(false);
+      setIsEditMode(false);
+      setEditingTaskId(null);
     }
+  };
 
-    setNewTask({ title: "", assignee: "", recurrence: "none", dueDate: "" });
-    setIsAddOpen(false);
+  const handleEditClick = (task: any) => {
+    setTaskForm({
+      title: task.title,
+      assignee: task.assignedToId,
+      recurrence: task.recurrence || "none",
+      dueDate: task.dueDate || ""
+    });
+    setEditingTaskId(task.id);
+    setIsEditMode(true);
+    setIsDialogOpen(true);
   };
 
   const toggleTask = (taskId: string, currentStatus: boolean) => {
@@ -131,6 +151,14 @@ export default function TasksPage() {
     if (!user || taskId.startsWith("d")) return;
     const taskRef = doc(firestore, "households", householdId, "tasks", taskId);
     deleteDocumentNonBlocking(taskRef);
+    toast({ title: "Task deleted" });
+  };
+
+  const openAddDialog = () => {
+    setTaskForm(initialTaskState);
+    setIsEditMode(false);
+    setEditingTaskId(null);
+    setIsDialogOpen(true);
   };
 
   return (
@@ -143,9 +171,9 @@ export default function TasksPage() {
           </h1>
           <p className="text-muted-foreground mt-1">{t("tasks.description")}</p>
         </div>
-        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2 shadow-lg">
+            <Button className="gap-2 shadow-lg" onClick={openAddDialog}>
               <Plus className="h-4 w-4" />
               {t("tasks.add")}
             </Button>
@@ -154,7 +182,7 @@ export default function TasksPage() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <CheckSquare className="h-5 w-5 text-primary" />
-                {t("tasks.add")}
+                {isEditMode ? "Edit Task" : t("tasks.add")}
               </DialogTitle>
             </DialogHeader>
             <div className="grid gap-6 py-4">
@@ -162,8 +190,8 @@ export default function TasksPage() {
                 <Label htmlFor="title" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Task Title</Label>
                 <Input 
                   id="title" 
-                  value={newTask.title} 
-                  onChange={(e) => setNewTask({ ...newTask, title: e.target.value })} 
+                  value={taskForm.title} 
+                  onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} 
                   placeholder="e.g. Wash the car"
                 />
               </div>
@@ -172,19 +200,19 @@ export default function TasksPage() {
                 <Input 
                   id="dueDate" 
                   type="date"
-                  value={newTask.dueDate} 
-                  onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })} 
+                  value={taskForm.dueDate} 
+                  onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })} 
                 />
               </div>
               <div className="grid gap-2">
                 <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Assign To Family Member</Label>
-                <Select value={newTask.assignee} onValueChange={(val) => setNewTask({ ...newTask, assignee: val })}>
+                <Select value={taskForm.assignee} onValueChange={(val) => setTaskForm({ ...taskForm, assignee: val })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select member from your tree" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Me">Myself</SelectItem>
-                    {displayPersons?.map((person: any) => (
+                    {displayPersons.map((person: any) => (
                       <SelectItem key={person.id} value={person.id}>
                         {person.name}
                       </SelectItem>
@@ -192,11 +220,25 @@ export default function TasksPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="grid gap-2">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Recurrence</Label>
+                <Select value={taskForm.recurrence} onValueChange={(val) => setTaskForm({ ...taskForm, recurrence: val })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select frequency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <DialogFooter>
-              <Button onClick={handleAddTask} disabled={isNotifying} className="gap-2 font-bold min-w-[120px]">
+              <Button onClick={handleSaveTask} disabled={isNotifying} className="gap-2 font-bold min-w-[120px]">
                 {isNotifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                {isNotifying ? "Processing..." : t("common.add")}
+                {isNotifying ? "Processing..." : (isEditMode ? "Update Task" : t("common.add"))}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -243,10 +285,10 @@ export default function TasksPage() {
                           Due: {task.dueDate}
                         </span>
                       )}
-                      {task.recurrence !== 'none' && (
+                      {task.recurrence && task.recurrence !== 'none' && (
                         <span className="flex items-center gap-1.5">
                           <Clock className="h-3.5 w-3.5" />
-                          {task.recurrence || "Once"}
+                          {task.recurrence}
                         </span>
                       )}
                     </div>
@@ -257,14 +299,24 @@ export default function TasksPage() {
                     {task.isCompleted ? t("tasks.done") : "Pending"}
                   </Badge>
                   {user && !task.id.startsWith("d") && (
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => deleteTask(task.id)}
-                      className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleEditClick(task)}
+                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => deleteTask(task.id)}
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   )}
                 </div>
               </CardContent>
