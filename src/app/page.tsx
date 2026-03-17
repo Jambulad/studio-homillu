@@ -19,8 +19,8 @@ import {
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { getMoonPhase } from "@/lib/lunar-utils";
-import { useState, useEffect, useMemo } from "react";
-import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
+import { useState, useEffect } from "react";
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, collectionGroup, query, where, doc, updateDoc } from "firebase/firestore";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -81,9 +81,9 @@ export default function DashboardPage() {
 
   // Invitation Search Logic - We target unconfirmed records matching user's email
   const invitationsQuery = useMemoFirebase(() => {
-    // Crucially, only trigger this if the user is logged in AND has an email
-    // This prevents permission errors during early auth initialization
-    if (!firestore || !user?.email) return null;
+    // Crucially, only trigger this if the user is signed in AND has a valid email string.
+    // This prevents permission errors during early auth initialization or for anonymous users.
+    if (!firestore || !user?.email || user.email.trim() === "") return null;
     
     return query(
       collectionGroup(firestore, "persons"),

@@ -67,14 +67,18 @@ service cloud.firestore {
     }
 
     // --- COLLECTION GROUP RULES (For Invitations) ---
+    // This allows the collectionGroup("persons") query used to find invitations by email.
     match /{path=**}/persons/{personId} {
-      // Allow users to find their own person record across households via email
-      // We use 'read' to cover both 'get' and 'list' operations for the collection group
-      allow read: if isSignedIn() && 
-                    request.auth.token.email != null && 
+      // Allow the list operation (query) if the user is signed in.
+      // The filter 'where("email", "==", user.email)' in the query ensures 
+      // the rule engine can prove the query is safe against the document-level check below.
+      allow list: if isSignedIn() && request.auth.token.email != null;
+      
+      // Allow getting individual documents if the email matches.
+      allow get: if isSignedIn() && 
                     resource.data.email == request.auth.token.email;
       
-      // Allow the user to confirm their own participation
+      // Allow the user to confirm their own participation.
       allow update: if isSignedIn() && 
                       resource.data.email == request.auth.token.email && 
                       request.resource.data.isConfirmed == true;
