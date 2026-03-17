@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card } from "@/components/ui/card";
@@ -111,7 +110,7 @@ export function TreeNode({ data }: TreeNodeProps) {
 
             <div className="relative mt-2">
               <Avatar className="h-20 w-20 ring-4 ring-primary ring-offset-4 transition-transform group-hover:scale-105">
-                <AvatarImage src={person.photoUrl} alt={person.name} />
+                <AvatarImage src={person.photoUrl || undefined} alt={person.name} />
                 <AvatarFallback className="bg-primary/10 text-primary">
                   <User className="h-10 w-10" />
                 </AvatarFallback>

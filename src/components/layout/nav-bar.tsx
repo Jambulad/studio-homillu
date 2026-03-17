@@ -1,4 +1,3 @@
-
 "use client"
 
 import Link from "next/link";
@@ -167,7 +166,7 @@ export function NavBar() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0">
                   <Avatar className="h-9 w-9 border-2 border-primary/20">
-                    <AvatarImage src={user.photoURL || ""} alt={user.displayName || "User"} />
+                    <AvatarImage src={user.photoURL || undefined} alt={user.displayName || "User"} />
                     <AvatarFallback className="bg-primary/10">
                       <UserIcon className="h-5 w-5 text-primary" />
                     </AvatarFallback>

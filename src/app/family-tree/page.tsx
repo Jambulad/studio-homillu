@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
@@ -638,7 +637,7 @@ function FamilyTreeContent() {
             <div className="flex flex-col items-center gap-4">
               <div className="relative group">
                 <Avatar className="h-28 w-28 border-4 border-primary/20 group-hover:border-primary/50 transition-colors shadow-lg">
-                  <AvatarImage src={imagePreview || ""} />
+                  <AvatarImage src={imagePreview || undefined} />
                   <AvatarFallback className="bg-secondary">
                     <Camera className="h-10 w-10 text-muted-foreground opacity-50" />
                   </AvatarFallback>
