@@ -1,14 +1,14 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * HOMILLU SECURITY RULES - PROTOTYPING MODE
+     * HOMILLU SECURITY RULES - STABILITY MODE
      * 
-     * CORE PHILOSOPHY:
-     * This ruleset enforces a strict user-ownership and shared-household model. 
-     * Security is prioritized through path-based authorization for individual users 
-     * and member-map validation for shared household data.
+     * Enforces strict user-ownership and shared-household model.
+     * Permission-heavy features like Collection Group queries are restricted 
+     * to ensure dashboard stability.
      */
 
     // --- GLOBAL HELPER FUNCTIONS ---
@@ -35,25 +35,6 @@ service cloud.firestore {
       return (isSignedIn() && request.auth.uid == householdId) || 
              (exists(/databases/$(database)/documents/households/$(householdId)) && 
               isMemberInMap(get(/databases/$(database)/documents/households/$(householdId)).data.members));
-    }
-
-    // --- COLLECTION GROUP RULES (For Invitations) ---
-    // These rules are required for queries that search across all households.
-    match /{path=**}/persons/{personId} {
-      // Allow listing ONLY if the query filter strictly matches the user's authenticated email.
-      // This satisfies the "safety proof" required by the Firestore rules engine for collection groups.
-      allow list: if isSignedIn() && 
-                    request.auth.token.email != null && 
-                    request.query.filters.email == request.auth.token.email;
-      
-      // Allow reading individual documents if the email matches.
-      allow get: if isSignedIn() && 
-                    resource.data.email == request.auth.token.email;
-      
-      // Allow a user to confirm their own participation status.
-      allow update: if isSignedIn() && 
-                      resource.data.email == request.auth.token.email && 
-                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isConfirmed']);
     }
 
     // --- USER PROFILES ---

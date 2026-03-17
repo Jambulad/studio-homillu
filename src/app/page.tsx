@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useTranslation } from "react-i18next";
@@ -11,21 +12,15 @@ import {
   ChevronRight,
   TrendingUp,
   Moon,
-  Database,
-  Users,
-  CheckCircle2,
-  Loader2
+  Database
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { getMoonPhase } from "@/lib/lunar-utils";
 import { useState, useEffect } from "react";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, collectionGroup, query, where, doc, updateDoc } from "firebase/firestore";
+import { collection } from "firebase/firestore";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
 
 const DUMMY_TASKS = [
   { id: "d1", title: "Water the indoor plants", isCompleted: false },
@@ -51,10 +46,7 @@ export default function DashboardPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const firestore = useFirestore();
-  const { toast } = useToast();
   const [moonData, setMoonData] = useState<ReturnType<typeof getMoonPhase> | null>(null);
-  const [invitation, setInvitation] = useState<any | null>(null);
-  const [isConfirming, setIsConfirming] = useState(false);
 
   useEffect(() => {
     setMoonData(getMoonPhase());
@@ -77,54 +69,9 @@ export default function DashboardPage() {
     return collection(firestore, "households", householdId, "persons");
   }, [firestore, user, householdId]);
 
-  const invitationsQuery = useMemoFirebase(() => {
-    // Only attempt the query if we have a stabilized user email.
-    // The collectionGroup security rule requires an explicit email filter.
-    if (!firestore || !user?.email || user.email.trim() === "") return null;
-    
-    return query(
-      collectionGroup(firestore, "persons"),
-      where("email", "==", user.email),
-      where("isConfirmed", "==", false)
-    );
-  }, [firestore, user?.email]);
-
   const { data: tasks, isLoading: tasksLoading } = useCollection(tasksQuery);
   const { data: shopping, isLoading: shoppingLoading } = useCollection(shoppingQuery);
   const { data: persons, isLoading: personsLoading } = useCollection(personsQuery);
-  const { data: pendingInvitations } = useCollection(invitationsQuery);
-
-  useEffect(() => {
-    if (pendingInvitations && pendingInvitations.length > 0) {
-      setInvitation(pendingInvitations[0]);
-    } else {
-      setInvitation(null);
-    }
-  }, [pendingInvitations]);
-
-  const handleConfirmInvitation = async () => {
-    if (!invitation || !firestore) return;
-    setIsConfirming(true);
-    try {
-      const personRef = doc(firestore, "households", invitation.householdId, "persons", invitation.id);
-      await updateDoc(personRef, { isConfirmed: true });
-      
-      toast({
-        title: "Welcome to the Family!",
-        description: `You are now a confirmed member of your family hub.`,
-      });
-      setInvitation(null);
-    } catch (error) {
-      console.error("Confirmation Error:", error);
-      toast({
-        variant: "destructive",
-        title: "Confirmation Failed",
-        description: "We couldn't verify your membership at this time.",
-      });
-    } finally {
-      setIsConfirming(false);
-    }
-  };
 
   const displayTasks = user ? (tasks || []) : DUMMY_TASKS;
   const displayShopping = user ? (shopping || []) : DUMMY_ITEMS;
@@ -260,34 +207,6 @@ export default function DashboardPage() {
           </Card>
         )}
       </div>
-
-      <Dialog open={!!invitation} onOpenChange={() => setInvitation(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold flex items-center gap-3">
-              <Users className="h-7 w-7 text-primary" />
-              Family Invitation
-            </DialogTitle>
-            <DialogDescription className="text-lg pt-2">
-              <span className="font-bold text-foreground">{invitation?.name}</span>, you have been added to a digital family tree!
-            </DialogDescription>
-          </DialogHeader>
-          <div className="bg-secondary/20 p-6 rounded-2xl border border-dashed border-primary/20 my-4 text-center">
-            <p className="text-muted-foreground leading-relaxed italic">
-              "Every family story deserves to be preserved. By confirming, you'll be part of the shared heritage and collaboration hub."
-            </p>
-          </div>
-          <DialogFooter className="flex-col sm:flex-row gap-3">
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setInvitation(null)}>
-              Maybe Later
-            </Button>
-            <Button className="w-full sm:w-auto gap-2 font-bold px-8" onClick={handleConfirmInvitation} disabled={isConfirming}>
-              {isConfirming ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              {isConfirming ? "Confirming..." : "Confirm & Join"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
