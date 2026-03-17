@@ -79,9 +79,12 @@ export default function DashboardPage() {
     return collection(firestore, "households", householdId, "persons");
   }, [firestore, user, householdId]);
 
-  // Invitation Search Logic
+  // Invitation Search Logic - We target unconfirmed records matching user's email
   const invitationsQuery = useMemoFirebase(() => {
+    // Crucially, only trigger this if the user is logged in AND has an email
+    // This prevents permission errors during early auth initialization
     if (!firestore || !user?.email) return null;
+    
     return query(
       collectionGroup(firestore, "persons"),
       where("email", "==", user.email),
@@ -107,12 +110,13 @@ export default function DashboardPage() {
     if (!invitation || !firestore) return;
     setIsConfirming(true);
     try {
+      // Use the householdId and personId from the invitation document
       const personRef = doc(firestore, "households", invitation.householdId, "persons", invitation.id);
       await updateDoc(personRef, { isConfirmed: true });
       
       toast({
         title: "Welcome to the Family!",
-        description: `You are now a confirmed member of ${invitation.householdName || "the family"} hub.`,
+        description: `You are now a confirmed member of your family hub.`,
       });
       setInvitation(null);
     } catch (error) {

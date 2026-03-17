@@ -69,9 +69,15 @@ service cloud.firestore {
     // --- COLLECTION GROUP RULES (For Invitations) ---
     match /{path=**}/persons/{personId} {
       // Allow users to find their own person record across households via email
-      allow list: if isSignedIn() && request.auth.token.email != null && resource.data.email == request.auth.token.email;
+      // We use 'read' to cover both 'get' and 'list' operations for the collection group
+      allow read: if isSignedIn() && 
+                    request.auth.token.email != null && 
+                    resource.data.email == request.auth.token.email;
+      
       // Allow the user to confirm their own participation
-      allow update: if isSignedIn() && resource.data.email == request.auth.token.email && request.resource.data.isConfirmed == true;
+      allow update: if isSignedIn() && 
+                      resource.data.email == request.auth.token.email && 
+                      request.resource.data.isConfirmed == true;
     }
 
     // --- DEFAULT DENY ---
