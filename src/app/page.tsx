@@ -13,20 +13,25 @@ import {
   TrendingUp,
   Moon,
   Database,
-  Sparkles
+  Sparkles,
+  AlertCircle,
+  ArrowRight
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { getMoonPhase } from "@/lib/lunar-utils";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { addDays, isBefore, parseISO, isValid, startOfToday } from "date-fns";
 
 const DUMMY_TASKS = [
-  { id: "d1", title: "Water the indoor plants", isCompleted: false },
-  { id: "d2", title: "Buy groceries for dinner", isCompleted: true },
-  { id: "d3", title: "Clean the backyard", isCompleted: false },
+  { id: "d1", title: "Water the indoor plants", isCompleted: false, dueDate: new Date().toISOString() },
+  { id: "d2", title: "Buy groceries for dinner", isCompleted: true, dueDate: new Date().toISOString() },
+  { id: "d3", title: "Clean the backyard", isCompleted: false, dueDate: addDays(new Date(), 1).toISOString() },
 ];
 
 const DUMMY_ITEMS = [
@@ -48,6 +53,8 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const firestore = useFirestore();
   const [moonData, setMoonData] = useState<ReturnType<typeof getMoonPhase> | null>(null);
+  const [isUrgentDialogOpen, setIsUrgentDialogOpen] = useState(false);
+  const [hasShownUrgentDialog, setHasShownUrgentDialog] = useState(false);
 
   useEffect(() => {
     setMoonData(getMoonPhase());
@@ -77,6 +84,26 @@ export default function DashboardPage() {
   const displayTasks = user ? (tasks || []) : DUMMY_TASKS;
   const displayShopping = user ? (shopping || []) : DUMMY_ITEMS;
   const displayPersons = user ? (persons || []) : DUMMY_PERSONS;
+
+  const urgentTasks = useMemo(() => {
+    const today = startOfToday();
+    const soon = addDays(today, 2); // Tasks due in next 48 hours
+
+    return displayTasks.filter((task: any) => {
+      if (task.isCompleted) return false;
+      if (!task.dueDate) return false;
+      
+      const dueDate = parseISO(task.dueDate);
+      return isValid(dueDate) && isBefore(dueDate, soon);
+    });
+  }, [displayTasks]);
+
+  useEffect(() => {
+    if (urgentTasks.length > 0 && !hasShownUrgentDialog && !tasksLoading) {
+      setIsUrgentDialogOpen(true);
+      setHasShownUrgentDialog(true);
+    }
+  }, [urgentTasks, hasShownUrgentDialog, tasksLoading]);
 
   const pendingTasksCount = displayTasks.filter((t: any) => !t.isCompleted).length;
   const shoppingItemsCount = displayShopping.length;
@@ -208,6 +235,43 @@ export default function DashboardPage() {
           </Card>
         )}
       </div>
+
+      <Dialog open={isUrgentDialogOpen} onOpenChange={setIsUrgentDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="h-12 w-12 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center mb-4">
+              <AlertCircle className="h-6 w-6 text-orange-600" />
+            </div>
+            <DialogTitle className="text-2xl font-bold">Upcoming Responsibilities</DialogTitle>
+            <DialogDescription>
+              You have {urgentTasks.length} task{urgentTasks.length > 1 ? 's' : ''} happening soon.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3">
+            {urgentTasks.map((task: any) => (
+              <div key={task.id} className="flex items-center justify-between p-3 rounded-xl border bg-orange-50/50 dark:bg-orange-950/10 border-orange-100 dark:border-orange-900/30">
+                <div className="flex items-center gap-3">
+                  <CheckSquare className="h-4 w-4 text-orange-600" />
+                  <div>
+                    <p className="text-sm font-bold leading-none">{task.title}</p>
+                    <p className="text-[10px] text-orange-600 font-bold uppercase tracking-wider mt-1">
+                      Due: {task.dueDate}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsUrgentDialogOpen(false)}>Later</Button>
+            <Link href="/tasks">
+              <Button className="gap-2" onClick={() => setIsUrgentDialogOpen(false)}>
+                Go to Tasks <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

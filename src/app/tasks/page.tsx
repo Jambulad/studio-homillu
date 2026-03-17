@@ -4,12 +4,12 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { CheckSquare, Plus, Clock, User, Trash2, Loader2, Sparkles, Send } from "lucide-react";
+import { CheckSquare, Plus, Clock, User, Trash2, Loader2, Sparkles, Send, Calendar as CalendarIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, serverTimestamp, doc } from "firebase/firestore";
+import { collection, serverTimestamp, doc, Timestamp } from "firebase/firestore";
 import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -17,11 +17,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { sendTaskNotification } from "@/ai/flows/send-task-notification";
+import { format } from "date-fns";
 
 const DUMMY_TASKS = [
-  { id: "d1", title: "Water the indoor plants", assignedToId: "Jambula Chandraiah", recurrence: "Daily", isCompleted: false },
-  { id: "d2", title: "Buy groceries for dinner", assignedToId: "Me", recurrence: "None", isCompleted: true },
-  { id: "d3", title: "Clean the backyard", assignedToId: "Jambula Latha", recurrence: "Weekly", isCompleted: false },
+  { id: "d1", title: "Water the indoor plants", assignedToId: "Jambula Chandraiah", recurrence: "Daily", isCompleted: false, dueDate: new Date().toISOString() },
+  { id: "d2", title: "Buy groceries for dinner", assignedToId: "Me", recurrence: "None", isCompleted: true, dueDate: new Date().toISOString() },
+  { id: "d3", title: "Clean the backyard", assignedToId: "Jambula Latha", recurrence: "Weekly", isCompleted: false, dueDate: new Date().toISOString() },
 ];
 
 const DUMMY_PERSONS = [
@@ -38,7 +39,7 @@ export default function TasksPage() {
   const { toast } = useToast();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isNotifying, setIsNotifying] = useState(false);
-  const [newTask, setNewTask] = useState({ title: "", assignee: "", recurrence: "none" });
+  const [newTask, setNewTask] = useState({ title: "", assignee: "", recurrence: "none", dueDate: "" });
 
   const householdId = user?.uid || "placeholder";
 
@@ -65,7 +66,6 @@ export default function TasksPage() {
     }
     if (!newTask.title) return;
 
-    // Find selected person to get their email for notifications
     const selectedPerson = cloudPersons?.find(p => p.id === newTask.assignee);
     const assignedName = selectedPerson ? selectedPerson.name : (newTask.assignee === "Me" ? (user.displayName || "Me") : newTask.assignee);
     const assignedEmail = selectedPerson?.email || "";
@@ -79,6 +79,7 @@ export default function TasksPage() {
       assignedToEmail: assignedEmail,
       isCompleted: false,
       recurrence: newTask.recurrence,
+      dueDate: newTask.dueDate || null,
       createdAt: serverTimestamp(),
       createdByUserId: user.uid,
       householdMembers: { [user.uid]: "admin" }
@@ -87,7 +88,6 @@ export default function TasksPage() {
     const tasksRef = collection(firestore, "households", householdId, "tasks");
     addDocumentNonBlocking(tasksRef, taskData);
 
-    // Trigger AI Notification Flow if assigned to someone else
     if (newTask.assignee && newTask.assignee !== "Me" && newTask.assignee !== "Myself") {
       setIsNotifying(true);
       try {
@@ -111,7 +111,7 @@ export default function TasksPage() {
       toast({ title: "Task added" });
     }
 
-    setNewTask({ title: "", assignee: "", recurrence: "none" });
+    setNewTask({ title: "", assignee: "", recurrence: "none", dueDate: "" });
     setIsAddOpen(false);
   };
 
@@ -168,6 +168,15 @@ export default function TasksPage() {
                 />
               </div>
               <div className="grid gap-2">
+                <Label htmlFor="dueDate" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Due Date</Label>
+                <Input 
+                  id="dueDate" 
+                  type="date"
+                  value={newTask.dueDate} 
+                  onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })} 
+                />
+              </div>
+              <div className="grid gap-2">
                 <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Assign To Family Member</Label>
                 <Select value={newTask.assignee} onValueChange={(val) => setNewTask({ ...newTask, assignee: val })}>
                   <SelectTrigger>
@@ -180,17 +189,8 @@ export default function TasksPage() {
                         {person.name}
                       </SelectItem>
                     ))}
-                    {!displayPersons?.length && (
-                      <div className="p-2 text-xs text-muted-foreground italic">
-                        Add people in Family Tree to see them here.
-                      </div>
-                    )}
                   </SelectContent>
                 </Select>
-                <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-1">
-                  <Sparkles className="h-3 w-3 text-primary" />
-                  AI will notify the assignee when they log in.
-                </p>
               </div>
             </div>
             <DialogFooter>
@@ -232,11 +232,17 @@ export default function TasksPage() {
                     <h3 className={`font-bold text-lg ${task.isCompleted ? 'line-through text-muted-foreground' : ''}`}>
                       {task.title}
                     </h3>
-                    <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-3 mt-1 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1.5 bg-secondary/50 px-2 py-0.5 rounded-full font-medium">
                         <User className="h-3.5 w-3.5 text-primary" />
                         {task.assignedToId === user?.uid || task.assignedToId === 'Me' ? "Me" : (task.assignedToName || task.assignedToId)}
                       </span>
+                      {task.dueDate && (
+                        <span className="flex items-center gap-1.5 text-xs font-bold text-orange-600 dark:text-orange-400">
+                          <CalendarIcon className="h-3.5 w-3.5" />
+                          Due: {task.dueDate}
+                        </span>
+                      )}
                       {task.recurrence !== 'none' && (
                         <span className="flex items-center gap-1.5">
                           <Clock className="h-3.5 w-3.5" />
