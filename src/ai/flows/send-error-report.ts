@@ -1,10 +1,14 @@
+
 'use server';
 /**
- * @fileOverview An AI flow that formats and reports technical errors to the owner.
+ * @fileOverview An AI flow that formats and reports technical errors to the owner via Resend.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { Resend } from 'resend';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const SendErrorReportInputSchema = z.object({
   message: z.string().describe('The error message.'),
@@ -21,18 +25,27 @@ const SendErrorReportOutputSchema = z.object({
 
 export async function sendErrorReport(input: SendErrorReportInput) {
   try {
-    const hasApiKey = !!(process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY);
+    const hasAiKey = !!(process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY);
     
-    if (!hasApiKey) {
+    if (!hasAiKey) {
       console.log(`[SYSTEM ERROR LOGGED]: ${input.message} (Type: ${input.type})`);
-      return { success: true, reportPreview: "Error logged to console (No AI API Key)." };
+      return { success: true, reportPreview: "Error logged to console." };
     }
 
-    return await sendErrorReportFlow(input);
+    const result = await sendErrorReportFlow(input);
+
+    if (process.env.RESEND_API_KEY) {
+      await resend.emails.send({
+        from: 'HomIllu Monitor <onboarding@resend.dev>',
+        to: 'dhileepudu@gmail.com',
+        subject: `[HomIllu ALERT] Technical Error: ${input.type || 'Unknown'}`,
+        text: `Error Message: ${input.message}\n\nAI Diagnostic: ${result.reportPreview}\n\nStack Trace: ${input.stack || 'N/A'}\n\nContext: ${JSON.stringify(input.context || {})}`,
+      });
+    }
+
+    return result;
   } catch (e) {
-    // Avoid infinite error loops by just logging to console if reporting fails
     console.error("Critical: Error Reporting Flow Failed:", e);
-    console.error("Original Error:", input.message);
   }
 }
 
@@ -56,11 +69,7 @@ const sendErrorReportFlow = ai.defineFlow(
 
     const reportPreview = text || "Technical error report generated.";
     
-    console.log("------------------------------------------------");
-    console.log(`[TECHNICAL ALERT ROUTED TO dhileepudu@gmail.com]`);
-    console.log(`SUMMARY: ${reportPreview}`);
-    if (input.stack) console.log(`STACK: ${input.stack.split('\n')[0]}...`);
-    console.log("------------------------------------------------");
+    console.log(`[SYSTEM ALERT]: Routing error report to dhileepudu@gmail.com`);
 
     return {
       success: true,

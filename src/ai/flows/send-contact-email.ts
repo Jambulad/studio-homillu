@@ -1,13 +1,17 @@
+
 'use server';
 /**
- * @fileOverview An AI flow that handles contact message notifications.
+ * @fileOverview An AI flow that handles contact message notifications using Resend.
  * 
- * This flow simulates sending an email by generating a warm confirmation 
- * message and logging the "sent" email to the server console.
+ * This flow generates a warm confirmation message and sends the message 
+ * to dhileepudu@gmail.com.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { Resend } from 'resend';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const SendContactEmailInputSchema = z.object({
   senderName: z.string().describe('The name of the person sending the message.'),
@@ -24,25 +28,36 @@ export type SendContactEmailOutput = z.infer<typeof SendContactEmailOutputSchema
 
 /**
  * Public wrapper for the contact email flow.
- * Note: This currently simulates email delivery by logging to the console.
+ * Uses Resend to deliver messages to dhileepudu@gmail.com.
  */
 export async function sendContactEmail(input: SendContactEmailInput): Promise<SendContactEmailOutput> {
   try {
-    // Check if we have an API key to run the AI flow
-    const hasApiKey = !!(process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY);
+    const hasAiKey = !!(process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY);
     
-    if (!hasApiKey) {
-      const fallbackPreview = `Namaste ${input.senderName}! Your message has been captured. I (Dhileepudu) will review it at dhileepudu@gmail.com shortly. [Simulated Delivery]`;
-      console.log(`[CONTACT EMAIL SIMULATION - NO API KEY]:\nTo: dhileepudu@gmail.com\nFrom: ${input.senderEmail}\nMessage: ${input.message}`);
-      return { success: true, preview: fallbackPreview };
+    if (!hasAiKey) {
+      console.log(`[CONTACT EMAIL SIMULATION]: No AI API Key provided.`);
+      return { success: true, preview: `Namaste ${input.senderName}! We've captured your message.` };
     }
 
-    return await sendContactEmailFlow(input);
+    const result = await sendContactEmailFlow(input);
+
+    // If we have a Resend key, send the actual email
+    if (process.env.RESEND_API_KEY) {
+      await resend.emails.send({
+        from: 'HomIllu Hub <onboarding@resend.dev>',
+        to: 'dhileepudu@gmail.com',
+        replyTo: input.senderEmail,
+        subject: `New Message from ${input.senderName} (HomIllu)`,
+        text: `Message: ${input.message}\n\nAI Summary: ${result.preview}`,
+      });
+    }
+
+    return result;
   } catch (error) {
     console.error("sendContactEmail AI Flow Error:", error);
     return {
       success: true, 
-      preview: `Message captured! Dhileepudu will get back to you at ${input.senderEmail} soon.`,
+      preview: `Message received! We'll get back to you at ${input.senderEmail} soon.`,
     };
   }
 }
@@ -61,20 +76,12 @@ const sendContactEmailFlow = ai.defineFlow(
       Message content: "${input.message}"
       
       Write a very short, warm confirmation message (max 2 sentences) acknowledging receipt.
-      Mention that Dhileepudu (the lungi-wearing daydreamer) will review this at dhileepudu@gmail.com soon.`,
+      Mention that Dhileepudu will review this at dhileepudu@gmail.com soon.`,
     });
     
     const preview = text || "Message received and routed to dhileepudu@gmail.com.";
     
-    // Log the "sent" email for the developer to see in the terminal
-    console.log("------------------------------------------------");
-    console.log(`[OUTGOING EMAIL SIMULATION]`);
-    console.log(`TO: dhileepudu@gmail.com`);
-    console.log(`FROM: ${input.senderEmail} (${input.senderName})`);
-    console.log(`SUBJECT: New Message from HomIllu Hub`);
-    console.log(`BODY: ${input.message}`);
-    console.log(`AI PREVIEW: ${preview}`);
-    console.log("------------------------------------------------");
+    console.log(`[OUTGOING CONTACT MESSAGE]: To dhileepudu@gmail.com from ${input.senderEmail}`);
     
     return {
       success: true,

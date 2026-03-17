@@ -1,14 +1,14 @@
 
 'use server';
 /**
- * @fileOverview An AI flow that simulates sending a family invitation email for consent.
- *
- * - sendFamilyInvitation - A function that composes and "sends" a family invitation email.
- * - SendFamilyInvitationInput - The input type for the invitation.
+ * @fileOverview An AI flow that sends a family invitation email using Resend.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { Resend } from 'resend';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const SendFamilyInvitationInputSchema = z.object({
   personName: z.string().describe('The name of the family member being invited.'),
@@ -25,7 +25,18 @@ const SendFamilyInvitationOutputSchema = z.object({
 export type SendFamilyInvitationOutput = z.infer<typeof SendFamilyInvitationOutputSchema>;
 
 export async function sendFamilyInvitation(input: SendFamilyInvitationInput): Promise<SendFamilyInvitationOutput> {
-  return sendFamilyInvitationFlow(input);
+  const result = await sendFamilyInvitationFlow(input);
+  
+  if (process.env.RESEND_API_KEY) {
+    await resend.emails.send({
+      from: 'HomIllu Heritage <onboarding@resend.dev>',
+      to: input.email,
+      subject: `You've been added to the ${input.householdName} Legacy`,
+      text: result.preview,
+    });
+  }
+
+  return result;
 }
 
 const prompt = ai.definePrompt({
@@ -54,9 +65,7 @@ const sendFamilyInvitationFlow = ai.defineFlow(
   },
   async (input) => {
     const { output } = await prompt(input);
-    
-    // In production, integrate with an email provider.
-    console.log(`[SIMULATED INVITATION SENT TO ${input.email}]:\n${output?.preview}`);
+    console.log(`[FAMILY INVITATION]: Sent to ${input.email}`);
     
     return {
       success: true,

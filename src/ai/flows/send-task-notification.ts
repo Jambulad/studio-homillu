@@ -1,18 +1,20 @@
+
 'use server';
 /**
- * @fileOverview An AI flow that simulates sending an email notification for a family task.
- *
- * - sendTaskNotification - A function that composes and "sends" a task assignment email.
- * - SendTaskNotificationInput - The input type for the notification.
+ * @fileOverview An AI flow that sends an email notification for a family task using Resend.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { Resend } from 'resend';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const SendTaskNotificationInputSchema = z.object({
   taskTitle: z.string().describe('The title of the assigned task.'),
   assigneeName: z.string().describe('The name of the family member assigned to the task.'),
   assignedBy: z.string().describe('The name of the person who assigned the task.'),
+  email: z.string().email().optional().describe('Recipient email, if known.'),
 });
 export type SendTaskNotificationInput = z.infer<typeof SendTaskNotificationInputSchema>;
 
@@ -23,7 +25,18 @@ const SendTaskNotificationOutputSchema = z.object({
 export type SendTaskNotificationOutput = z.infer<typeof SendTaskNotificationOutputSchema>;
 
 export async function sendTaskNotification(input: SendTaskNotificationInput): Promise<SendTaskNotificationOutput> {
-  return sendTaskNotificationFlow(input);
+  const result = await sendTaskNotificationFlow(input);
+
+  if (process.env.RESEND_API_KEY && input.email) {
+    await resend.emails.send({
+      from: 'HomIllu Tasks <onboarding@resend.dev>',
+      to: input.email,
+      subject: `New Family Task: ${input.taskTitle}`,
+      text: result.preview,
+    });
+  }
+
+  return result;
 }
 
 const prompt = ai.definePrompt({
@@ -50,9 +63,7 @@ const sendTaskNotificationFlow = ai.defineFlow(
   },
   async (input) => {
     const { output } = await prompt(input);
-    
-    // In a production app, you would integrate an email API (SendGrid, Postmark, etc.) here.
-    console.log(`[SIMULATED EMAIL SENT TO ${input.assigneeName}]:\n${output?.preview}`);
+    console.log(`[TASK NOTIFICATION]: Prepared for ${input.assigneeName}`);
     
     return {
       success: true,
