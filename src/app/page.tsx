@@ -27,7 +27,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
-// Synchronized dummy data constants to match sub-pages
 const DUMMY_TASKS = [
   { id: "d1", title: "Water the indoor plants", isCompleted: false },
   { id: "d2", title: "Buy groceries for dinner", isCompleted: true },
@@ -63,7 +62,6 @@ export default function DashboardPage() {
 
   const householdId = user?.uid || "default";
 
-  // Real-time data queries
   const tasksQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return collection(firestore, "households", householdId, "tasks");
@@ -79,10 +77,9 @@ export default function DashboardPage() {
     return collection(firestore, "households", householdId, "persons");
   }, [firestore, user, householdId]);
 
-  // Invitation Search Logic - We target unconfirmed records matching user's email
   const invitationsQuery = useMemoFirebase(() => {
-    // Crucially, only trigger this if the user is signed in AND has a valid email string.
-    // This prevents permission errors during early auth initialization or for anonymous users.
+    // Only attempt the query if we have a stabilized user email.
+    // This prevents rule evaluation errors during auth transition.
     if (!firestore || !user?.email || user.email.trim() === "") return null;
     
     return query(
@@ -97,7 +94,6 @@ export default function DashboardPage() {
   const { data: persons, isLoading: personsLoading } = useCollection(personsQuery);
   const { data: pendingInvitations } = useCollection(invitationsQuery);
 
-  // Check for the first unconfirmed invitation
   useEffect(() => {
     if (pendingInvitations && pendingInvitations.length > 0) {
       setInvitation(pendingInvitations[0]);
@@ -110,7 +106,6 @@ export default function DashboardPage() {
     if (!invitation || !firestore) return;
     setIsConfirming(true);
     try {
-      // Use the householdId and personId from the invitation document
       const personRef = doc(firestore, "households", invitation.householdId, "persons", invitation.id);
       await updateDoc(personRef, { isConfirmed: true });
       
@@ -131,7 +126,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Use cloud data if logged in, otherwise use dummy data
   const displayTasks = user ? (tasks || []) : DUMMY_TASKS;
   const displayShopping = user ? (shopping || []) : DUMMY_ITEMS;
   const displayPersons = user ? (persons || []) : DUMMY_PERSONS;
@@ -267,7 +261,6 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Invitation Dialog */}
       <Dialog open={!!invitation} onOpenChange={() => setInvitation(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

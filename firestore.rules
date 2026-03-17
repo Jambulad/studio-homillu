@@ -37,6 +37,24 @@ service cloud.firestore {
               isMemberInMap(get(/databases/$(database)/documents/households/$(householdId)).data.members));
     }
 
+    // --- COLLECTION GROUP RULES (For Invitations) ---
+    // This MUST be defined at a path that the collection group query matches.
+    // Recursive wildcards are required for collectionGroup queries to be authorized.
+    match /{path=**}/persons/{personId} {
+      // Allow the list operation (query) if the user is signed in.
+      // The rules engine will verify the query filters against the data-level checks.
+      allow list: if isSignedIn() && request.auth.token.email != null;
+      
+      // Allow getting individual documents if the email matches.
+      allow get: if isSignedIn() && 
+                    resource.data.email == request.auth.token.email;
+      
+      // Allow the user to confirm their own participation.
+      allow update: if isSignedIn() && 
+                      resource.data.email == request.auth.token.email && 
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isConfirmed']);
+    }
+
     // --- USER PROFILES ---
     match /users/{userId} {
       allow get, list: if isOwner(userId);
@@ -64,24 +82,6 @@ service cloud.firestore {
       allow create: if isHouseholdSubcollection() && checkHouseholdMembership(householdId) && request.resource.data.householdId == householdId;
       allow update: if isHouseholdSubcollection() && resource != null && ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.householdMembers)) && request.resource.data.householdId == resource.data.householdId;
       allow delete: if isHouseholdSubcollection() && resource != null && ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.householdMembers));
-    }
-
-    // --- COLLECTION GROUP RULES (For Invitations) ---
-    // This allows the collectionGroup("persons") query used to find invitations by email.
-    match /{path=**}/persons/{personId} {
-      // Allow the list operation (query) if the user is signed in.
-      // The filter 'where("email", "==", user.email)' in the query ensures 
-      // the rule engine can prove the query is safe against the document-level check below.
-      allow list: if isSignedIn() && request.auth.token.email != null;
-      
-      // Allow getting individual documents if the email matches.
-      allow get: if isSignedIn() && 
-                    resource.data.email == request.auth.token.email;
-      
-      // Allow the user to confirm their own participation.
-      allow update: if isSignedIn() && 
-                      resource.data.email == request.auth.token.email && 
-                      request.resource.data.isConfirmed == true;
     }
 
     // --- DEFAULT DENY ---
