@@ -99,11 +99,13 @@ export default function DashboardPage() {
   }, [displayTasks]);
 
   useEffect(() => {
-    if (urgentTasks.length > 0 && !hasShownUrgentDialog && !tasksLoading) {
+    // CRITICAL: Only trigger the dialog if we are NOT loading and have ACTUAL urgent tasks.
+    // We check 'user' to ensure we don't flash dummy data during auth transition.
+    if (user && !tasksLoading && urgentTasks.length > 0 && !hasShownUrgentDialog) {
       setIsUrgentDialogOpen(true);
       setHasShownUrgentDialog(true);
     }
-  }, [urgentTasks, hasShownUrgentDialog, tasksLoading]);
+  }, [urgentTasks, hasShownUrgentDialog, tasksLoading, user]);
 
   const pendingTasksCount = displayTasks.filter((t: any) => !t.isCompleted).length;
   const shoppingItemsCount = displayShopping.length;
@@ -242,9 +244,9 @@ export default function DashboardPage() {
             <div className="h-12 w-12 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center mb-4">
               <AlertCircle className="h-6 w-6 text-orange-600" />
             </div>
-            <DialogTitle className="text-2xl font-bold">Upcoming Responsibilities</DialogTitle>
+            <DialogTitle className="text-2xl font-bold">Upcoming Family Tasks</DialogTitle>
             <DialogDescription>
-              You have {urgentTasks.length} task{urgentTasks.length > 1 ? 's' : ''} happening soon.
+              These responsibilities need your attention soon.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-3">
@@ -266,7 +268,7 @@ export default function DashboardPage() {
             <Button variant="outline" onClick={() => setIsUrgentDialogOpen(false)}>Later</Button>
             <Link href="/tasks">
               <Button className="gap-2" onClick={() => setIsUrgentDialogOpen(false)}>
-                Go to Tasks <ArrowRight className="h-4 w-4" />
+                Go to Task List <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
           </DialogFooter>

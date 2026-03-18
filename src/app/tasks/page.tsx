@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { CheckSquare, Plus, Clock, User, Trash2, Loader2, Send, Calendar as CalendarIcon, Pencil } from "lucide-react";
+import { CheckSquare, Plus, Clock, User, Trash2, Loader2, Send, Calendar as CalendarIcon, Pencil, AlertTriangle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { sendTaskNotification } from "@/ai/flows/send-task-notification";
+import { isBefore, parseISO, startOfToday, isValid } from "date-fns";
 
 const DUMMY_TASKS = [
   { id: "d1", title: "Water the indoor plants", assignedToId: "Jambula Chandraiah", recurrence: "Daily", isCompleted: false, dueDate: new Date().toISOString().split('T')[0] },
@@ -261,67 +262,80 @@ export default function TasksPage() {
               <p className="text-muted-foreground">{t("tasks.noTasks")}</p>
             </div>
           )}
-          {displayTasks?.map((task: any) => (
-            <Card key={task.id} className={`group border-l-4 transition-all hover:shadow-md ${task.isCompleted ? 'border-l-accent bg-accent/5 opacity-75' : 'border-l-primary shadow-sm'}`}>
-              <CardContent className="flex items-center justify-between p-4">
-                <div className="flex items-center gap-4">
-                  <Checkbox 
-                    checked={task.isCompleted} 
-                    onCheckedChange={() => toggleTask(task.id, task.isCompleted)} 
-                    className="h-6 w-6"
-                  />
-                  <div>
-                    <h3 className={`font-bold text-lg ${task.isCompleted ? 'line-through text-muted-foreground' : ''}`}>
-                      {task.title}
-                    </h3>
-                    <div className="flex flex-wrap items-center gap-3 mt-1 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1.5 bg-secondary/50 px-2 py-0.5 rounded-full font-medium">
-                        <User className="h-3.5 w-3.5 text-primary" />
-                        {task.assignedToId === user?.uid || task.assignedToId === 'Me' ? "Me" : (task.assignedToName || task.assignedToId)}
-                      </span>
-                      {task.dueDate && (
-                        <span className="flex items-center gap-1.5 text-xs font-bold text-orange-600 dark:text-orange-400">
-                          <CalendarIcon className="h-3.5 w-3.5" />
-                          Due: {task.dueDate}
+          {displayTasks?.map((task: any) => {
+            const dueDate = task.dueDate ? parseISO(task.dueDate) : null;
+            const isExpired = dueDate && isValid(dueDate) && !task.isCompleted && isBefore(dueDate, startOfToday());
+
+            return (
+              <Card key={task.id} className={`group border-l-4 transition-all hover:shadow-md ${task.isCompleted ? 'border-l-accent bg-accent/5 opacity-75' : isExpired ? 'border-l-destructive shadow-sm' : 'border-l-primary shadow-sm'}`}>
+                <CardContent className="flex items-center justify-between p-4">
+                  <div className="flex items-center gap-4">
+                    <Checkbox 
+                      checked={task.isCompleted} 
+                      onCheckedChange={() => toggleTask(task.id, task.isCompleted)} 
+                      className="h-6 w-6"
+                    />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className={`font-bold text-lg ${task.isCompleted ? 'line-through text-muted-foreground' : ''}`}>
+                          {task.title}
+                        </h3>
+                        {isExpired && (
+                          <Badge variant="destructive" className="uppercase tracking-tighter font-black text-[10px] h-4">
+                            <AlertTriangle className="h-2.5 w-2.5 mr-1" />
+                            Expired
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3 mt-1 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1.5 bg-secondary/50 px-2 py-0.5 rounded-full font-medium">
+                          <User className="h-3.5 w-3.5 text-primary" />
+                          {task.assignedToId === user?.uid || task.assignedToId === 'Me' ? "Me" : (task.assignedToName || task.assignedToId)}
                         </span>
-                      )}
-                      {task.recurrence && task.recurrence !== 'none' && (
-                        <span className="flex items-center gap-1.5">
-                          <Clock className="h-3.5 w-3.5" />
-                          {task.recurrence}
-                        </span>
-                      )}
+                        {task.dueDate && (
+                          <span className={`flex items-center gap-1.5 text-xs font-bold ${isExpired ? 'text-destructive' : 'text-orange-600 dark:text-orange-400'}`}>
+                            <CalendarIcon className="h-3.5 w-3.5" />
+                            Due: {task.dueDate}
+                          </span>
+                        )}
+                        {task.recurrence && task.recurrence !== 'none' && (
+                          <span className="flex items-center gap-1.5">
+                            <Clock className="h-3.5 w-3.5" />
+                            {task.recurrence}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant={task.isCompleted ? "outline" : "default"} className={task.isCompleted ? "border-accent text-accent" : ""}>
-                    {task.isCompleted ? t("tasks.done") : "Pending"}
-                  </Badge>
-                  {user && !task.id.startsWith("d") && (
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => handleEditClick(task)}
-                        className="h-8 w-8 text-muted-foreground hover:text-primary"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => deleteTask(task.id)}
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  <div className="flex items-center gap-2">
+                    <Badge variant={task.isCompleted ? "outline" : isExpired ? "destructive" : "default"} className={task.isCompleted ? "border-accent text-accent" : ""}>
+                      {task.isCompleted ? t("tasks.done") : isExpired ? "Overdue" : "Pending"}
+                    </Badge>
+                    {user && !task.id.startsWith("d") && (
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleEditClick(task)}
+                          className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => deleteTask(task.id)}
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
       )}
     </div>
