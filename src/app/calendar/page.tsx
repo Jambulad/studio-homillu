@@ -75,7 +75,10 @@ export default function CalendarPage() {
       const getHolidays = async (code: string) => {
         try {
           const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/${code}`);
-          if (!res.ok) return [];
+          if (!res.ok) {
+            console.error(`Holiday API responded with ${res.status} for ${code}`);
+            return [];
+          }
           const text = await res.text();
           return text ? JSON.parse(text) : [];
         } catch (e) {
@@ -89,16 +92,26 @@ export default function CalendarPage() {
         getHolidays("IN")
       ]);
 
+      // If IN (India) data is empty from API, provide major national holidays as fallback
+      let finalIN = Array.isArray(dataIN) ? dataIN : [];
+      if (finalIN.length === 0) {
+        finalIN = [
+          { date: `${year}-01-26`, localName: "Republic Day", name: "Republic Day" },
+          { date: `${year}-08-15`, localName: "Independence Day", name: "Independence Day" },
+          { date: `${year}-10-02`, localName: "Gandhi Jayanti", name: "Gandhi Jayanti" },
+        ];
+      }
+
       setHolidays({ 
         AU: Array.isArray(dataAU) ? dataAU : [], 
-        IN: Array.isArray(dataIN) ? dataIN : [] 
+        IN: finalIN 
       });
     } catch (error) {
       console.error("Failed to fetch holidays:", error);
       toast({ 
         variant: "destructive", 
-        title: "Holiday Fetch Error", 
-        description: "Unable to retrieve global holiday dates. The holiday service may be temporarily unavailable." 
+        title: "Holiday Fetch Note", 
+        description: "Unable to retrieve real-time holiday data. Showing baseline national holidays." 
       });
     } finally {
       setIsHolidaysLoading(false);
@@ -568,11 +581,19 @@ export default function CalendarPage() {
                 <p className="text-xs text-muted-foreground">Select a year to see holidays in Australia & India</p>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="icon" onClick={() => { setHolidayYear(y => y - 1); fetchHolidays(holidayYear - 1); }}>
+                <Button variant="outline" size="icon" onClick={() => { 
+                  const newYear = holidayYear - 1;
+                  setHolidayYear(newYear); 
+                  fetchHolidays(newYear); 
+                }}>
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <span className="text-xl font-black px-4">{holidayYear}</span>
-                <Button variant="outline" size="icon" onClick={() => { setHolidayYear(y => y + 1); fetchHolidays(holidayYear + 1); }}>
+                <Button variant="outline" size="icon" onClick={() => { 
+                  const newYear = holidayYear + 1;
+                  setHolidayYear(newYear); 
+                  fetchHolidays(newYear); 
+                }}>
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
@@ -601,7 +622,7 @@ export default function CalendarPage() {
                               <p className="text-[10px] text-muted-foreground mt-1">{h.name}</p>
                             </div>
                             <Badge variant="secondary" className="text-[10px] font-bold px-2 py-0 bg-blue-50 text-blue-700 border-blue-100">
-                              {format(parseISO(h.date), "MMM d")}
+                              {h.date ? format(parseISO(h.date), "MMM d") : "N/A"}
                             </Badge>
                           </div>
                         ))
@@ -634,7 +655,7 @@ export default function CalendarPage() {
                               <p className="text-[10px] text-muted-foreground mt-1">{h.name}</p>
                             </div>
                             <Badge variant="secondary" className="text-[10px] font-bold px-2 py-0 bg-orange-50 text-orange-700 border-orange-100">
-                              {format(parseISO(h.date), "MMM d")}
+                              {h.date ? format(parseISO(h.date), "MMM d") : "N/A"}
                             </Badge>
                           </div>
                         ))
