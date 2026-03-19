@@ -15,7 +15,8 @@ import {
   Database,
   Sparkles,
   AlertCircle,
-  ArrowRight
+  ArrowRight,
+  Bell
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
@@ -27,6 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { addDays, isBefore, parseISO, isValid, startOfToday } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 const DUMMY_TASKS = [
   { id: "d1", title: "Water the indoor plants", isCompleted: false, dueDate: new Date().toISOString() },
@@ -52,6 +54,7 @@ export default function DashboardPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const firestore = useFirestore();
+  const { toast } = useToast();
   const [moonData, setMoonData] = useState<ReturnType<typeof getMoonPhase> | null>(null);
   const [isUrgentDialogOpen, setIsUrgentDialogOpen] = useState(false);
   const [hasShownUrgentDialog, setHasShownUrgentDialog] = useState(false);
@@ -87,7 +90,7 @@ export default function DashboardPage() {
 
   const urgentTasks = useMemo(() => {
     const today = startOfToday();
-    const soon = addDays(today, 2); // Tasks due in next 48 hours
+    const soon = addDays(today, 2);
 
     return displayTasks.filter((task: any) => {
       if (task.isCompleted) return false;
@@ -99,8 +102,6 @@ export default function DashboardPage() {
   }, [displayTasks]);
 
   useEffect(() => {
-    // CRITICAL: Only trigger the dialog if we are NOT loading and have ACTUAL urgent tasks.
-    // We check 'user' to ensure we don't flash dummy data during auth transition.
     if (user && !tasksLoading && urgentTasks.length > 0 && !hasShownUrgentDialog) {
       setIsUrgentDialogOpen(true);
       setHasShownUrgentDialog(true);
@@ -114,6 +115,20 @@ export default function DashboardPage() {
   const taskCompletionRate = displayTasks.length > 0 
     ? Math.round(((displayTasks.length - pendingTasksCount) / displayTasks.length) * 100) 
     : 0;
+
+  const testNotification = () => {
+    if ('Notification' in window) {
+      if (Notification.permission === 'granted') {
+        new Notification("HomIllu Test", {
+          body: "Mobile push notification system is active!",
+          icon: "/favicon.ico"
+        });
+        toast({ title: "Test Sent", description: "Verification notification dispatched." });
+      } else {
+        toast({ variant: "destructive", title: "Permission Denied", description: "Enable notifications in browser settings." });
+      }
+    }
+  };
 
   const widgets = [
     { title: t("nav.tasks"), description: tasksLoading && user ? "..." : `${pendingTasksCount} tasks pending`, icon: CheckSquare, color: "text-primary", href: "/tasks" },
@@ -134,6 +149,10 @@ export default function DashboardPage() {
             {t("dashboard.description")}
           </p>
         </div>
+        <Button variant="outline" className="gap-2 border-primary/20" onClick={testNotification}>
+          <Bell className="h-4 w-4 text-primary" />
+          Test Mobile Notification
+        </Button>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

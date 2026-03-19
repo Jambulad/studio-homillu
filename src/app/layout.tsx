@@ -8,6 +8,7 @@ import { Footer } from "@/components/layout/footer";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { NotificationSetup } from "@/components/NotificationSetup";
 
 export const metadata = {
   title: "HomIllu - Family Hub",
@@ -51,6 +52,7 @@ export default function RootLayout({
             <I18nProvider>
               <ThemeProvider>
                 <TooltipProvider>
+                  <NotificationSetup />
                   <div className="relative flex flex-1 flex-col">
                     <NavBar />
                     <main className="flex-1 container mx-auto p-4 md:p-6 lg:p-8">

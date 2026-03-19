@@ -33,6 +33,13 @@
           "items": {
             "type": "string"
           }
+        },
+        "fcmTokens": {
+          "type": "array",
+          "description": "A list of FCM tokens registered for this user's devices for push notifications.",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": [
