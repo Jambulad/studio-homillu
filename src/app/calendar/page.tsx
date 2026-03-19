@@ -71,19 +71,34 @@ export default function CalendarPage() {
   const fetchHolidays = async (year: number) => {
     setIsHolidaysLoading(true);
     try {
-      const [resAU, resIN] = await Promise.all([
-        fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/AU`),
-        fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/IN`)
+      const getHolidays = async (code: string) => {
+        try {
+          const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/${code}`);
+          if (!res.ok) return [];
+          const text = await res.text();
+          return text ? JSON.parse(text) : [];
+        } catch (e) {
+          console.error(`Failed to parse ${code} holidays:`, e);
+          return [];
+        }
+      };
+
+      const [dataAU, dataIN] = await Promise.all([
+        getHolidays("AU"),
+        getHolidays("IN")
       ]);
-      const dataAU = await resAU.json();
-      const dataIN = await resIN.json();
+
       setHolidays({ 
         AU: Array.isArray(dataAU) ? dataAU : [], 
         IN: Array.isArray(dataIN) ? dataIN : [] 
       });
     } catch (error) {
       console.error("Failed to fetch holidays:", error);
-      toast({ variant: "destructive", title: "Holiday Fetch Error", description: "Unable to retrieve global holiday dates." });
+      toast({ 
+        variant: "destructive", 
+        title: "Holiday Fetch Error", 
+        description: "Unable to retrieve global holiday dates. The holiday service may be temporarily unavailable." 
+      });
     } finally {
       setIsHolidaysLoading(false);
     }
@@ -357,7 +372,7 @@ export default function CalendarPage() {
 
         {/* Sidebar Info */}
         <div className="space-y-6">
-          <Card className="shadow-lg border-indigo-500/20 bg-indigo-500/5 relative overflow-hidden">
+          <Card className="shadow-lg border-indigo-500/20 bg-indigo-50/5 relative overflow-hidden dark:bg-indigo-950/5">
             <div className="absolute -top-4 -right-4 p-6 opacity-10">
               <Moon className="h-24 w-24 text-indigo-500" />
             </div>
