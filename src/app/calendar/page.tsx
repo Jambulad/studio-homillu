@@ -57,6 +57,7 @@ export default function CalendarPage() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newEvent, setNewEvent] = useState({ title: "", location: "", description: "" });
   const [mounted, setMounted] = useState(false);
+  const [showAllYears, setShowAllYears] = useState(false);
 
   // Holiday State
   const [holidayYear, setHolidayYear] = useState(new Date().getFullYear());
@@ -146,7 +147,7 @@ export default function CalendarPage() {
   }, [cloudPersons]);
 
   const displayEvents = useMemo(() => {
-    const base = user ? (cloudEvents || []) : DUMMY_EVENTS;
+    const base = user ? (cloudEvents || []) : DUMMY_TASKS;
     const yearBirthdays = birthdays.map(b => {
       const bdayThisYear = new Date(currentViewDate.getFullYear(), b.month, b.day);
       return { ...b, startDateTime: bdayThisYear };
@@ -536,14 +537,19 @@ export default function CalendarPage() {
                     The Telugu calendar follows a 60-year cycle. Each year has a unique name and specific qualities.
                   </p>
                   <div className="grid grid-cols-3 gap-2">
-                    {TELUGU_SAMVATSARAS.slice(0, 30).map((year, idx) => (
+                    {TELUGU_SAMVATSARAS.slice(0, showAllYears ? 60 : 30).map((year, idx) => (
                       <Badge key={idx} variant="outline" className="text-[10px] py-1 px-2 border-primary/20 bg-primary/5 flex items-center justify-center">
                         {year}
                       </Badge>
                     ))}
                     <div className="col-span-3 text-center py-2">
-                      <Button variant="ghost" size="sm" className="text-[10px] font-black uppercase tracking-widest text-primary">
-                        View All 60 Years
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => setShowAllYears(!showAllYears)}
+                        className="text-[10px] font-black uppercase tracking-widest text-primary"
+                      >
+                        {showAllYears ? "Show Less" : "View All 60 Years"}
                       </Button>
                     </div>
                   </div>
