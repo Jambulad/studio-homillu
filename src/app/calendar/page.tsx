@@ -24,7 +24,11 @@ import {
   Zap,
   Star,
   Compass,
-  Cake
+  Cake,
+  Globe,
+  Languages,
+  Milestone,
+  Flag
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -32,8 +36,9 @@ import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebas
 import { collection, serverTimestamp, doc } from "firebase/firestore";
 import { addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { useToast } from "@/hooks/use-toast";
-import { getMoonPhase, getTithi, getNakshatra, getRaasi, getRahukalam } from "@/lib/lunar-utils";
+import { getMoonPhase, getTithi, getNakshatra, getRaasi, getRahukalam, TELUGE_MONTHS, TELUGU_SAMVATSARAS } from "@/lib/lunar-utils";
 import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const DUMMY_EVENTS = [
   { id: "d1", title: "Family Picnic", location: "Central Park", description: "Bring sandwiches and fruit", startDateTime: startOfToday() },
@@ -52,9 +57,36 @@ export default function CalendarPage() {
   const [newEvent, setNewEvent] = useState({ title: "", location: "", description: "" });
   const [mounted, setMounted] = useState(false);
 
+  // Holiday State
+  const [holidayYear, setHolidayYear] = useState(new Date().getFullYear());
+  const [holidays, setHolidays] = useState<{ AU: any[], IN: any[] }>({ AU: [], IN: [] });
+  const [isHolidaysLoading, setIsHolidaysLoading] = useState(false);
+
   useEffect(() => {
     setMounted(true);
+    fetchHolidays(new Date().getFullYear());
   }, []);
+
+  const fetchHolidays = async (year: number) => {
+    setIsHolidaysLoading(true);
+    try {
+      const [resAU, resIN] = await Promise.all([
+        fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/AU`),
+        fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/IN`)
+      ]);
+      const dataAU = await resAU.json();
+      const dataIN = await resIN.json();
+      setHolidays({ 
+        AU: Array.isArray(dataAU) ? dataAU : [], 
+        IN: Array.isArray(dataIN) ? dataIN : [] 
+      });
+    } catch (error) {
+      console.error("Failed to fetch holidays:", error);
+      toast({ variant: "destructive", title: "Holiday Fetch Error", description: "Unable to retrieve global holiday dates." });
+    } finally {
+      setIsHolidaysLoading(false);
+    }
+  };
 
   const householdId = user?.uid || "placeholder";
 
@@ -78,25 +110,16 @@ export default function CalendarPage() {
       .map(p => {
         const bdayStr = p.birthDate;
         let date: Date | null = null;
-        
-        // Try to parse partial or full dates (e.g. "Feb 11", "2024-02-11")
         let parsed = new Date(bdayStr);
         if (!isValid(parsed) && bdayStr.split(' ').length === 2) {
-          // Try adding a dummy year for "Feb 11" format
           parsed = new Date(`${bdayStr} 2000`);
         }
-
-        if (isValid(parsed)) {
-          date = parsed;
-        }
-
+        if (isValid(parsed)) date = parsed;
         if (!date) return null;
-
         return {
           id: `bday-${p.id}`,
           title: `${p.name}'s Birthday`,
           isBirthday: true,
-          // Store month and day to recreate annually
           month: date.getMonth(),
           day: date.getDate(),
           location: "Family Hub",
@@ -108,14 +131,10 @@ export default function CalendarPage() {
 
   const displayEvents = useMemo(() => {
     const base = user ? (cloudEvents || []) : DUMMY_EVENTS;
-    
-    // Create virtual instances of birthdays for the visible range (current month)
     const yearBirthdays = birthdays.map(b => {
-      // Recreate the birthday date object in the context of the currently viewed year
       const bdayThisYear = new Date(currentViewDate.getFullYear(), b.month, b.day);
       return { ...b, startDateTime: bdayThisYear };
     });
-
     return [...base, ...yearBirthdays];
   }, [user, cloudEvents, birthdays, currentViewDate]);
 
@@ -143,7 +162,6 @@ export default function CalendarPage() {
       return;
     }
     if (!newEvent.title) return;
-
     const eventData = {
       householdId,
       title: newEvent.title,
@@ -155,7 +173,6 @@ export default function CalendarPage() {
       createdByUserId: user.uid,
       householdMembers: { [user.uid]: "admin" }
     };
-
     const eventsRef = collection(firestore, "households", householdId, "calendarEvents");
     addDocumentNonBlocking(eventsRef, eventData);
     setNewEvent({ title: "", location: "", description: "" });
@@ -173,13 +190,11 @@ export default function CalendarPage() {
   const exportToICS = () => {
     if (!displayEvents) return;
     let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//HomIllu//Family Calendar//EN\nCALSCALE:GREGORIAN\nMETHOD:PUBLISH\n";
-    
     displayEvents.forEach((event: any) => {
       const eventDate = event.startDateTime?.toDate ? event.startDateTime.toDate() : new Date(event.startDateTime);
       const dtStart = format(eventDate, "yyyyMMdd'T'HHmmss'Z'");
       const dtEnd = format(addHours(eventDate, 1), "yyyyMMdd'T'HHmmss'Z'");
       const dtStamp = format(new Date(), "yyyyMMdd'T'HHmmss'Z'");
-
       icsContent += "BEGIN:VEVENT\n";
       icsContent += `UID:${event.id}@homillu.com\n`;
       icsContent += `DTSTAMP:${dtStamp}\n`;
@@ -190,9 +205,7 @@ export default function CalendarPage() {
       if (event.location) icsContent += `LOCATION:${event.location}\n`;
       icsContent += "END:VEVENT\n";
     });
-
     icsContent += "END:VCALENDAR";
-
     const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -343,7 +356,6 @@ export default function CalendarPage() {
 
         {/* Sidebar Info */}
         <div className="space-y-6">
-          {/* Lunar Phase Card */}
           <Card className="shadow-lg border-indigo-500/20 bg-indigo-500/5 relative overflow-hidden">
             <div className="absolute -top-4 -right-4 p-6 opacity-10">
               <Moon className="h-24 w-24 text-indigo-500" />
@@ -357,23 +369,18 @@ export default function CalendarPage() {
               <div className="text-6xl mb-4 drop-shadow-xl animate-in zoom-in duration-500">{moonInfo.emoji}</div>
               <h3 className="text-xl font-bold">{moonInfo.name}</h3>
               <p className="text-xs text-muted-foreground mt-1 font-medium">{tithi}</p>
-              
               <div className="w-full mt-6 space-y-2">
                 <div className="flex justify-between text-[10px] font-bold uppercase">
                   <span>{t("lunar.visibility")}</span>
                   <span>{Math.round((1 - Math.abs(0.5 - moonInfo.phase) * 2) * 100)}%</span>
                 </div>
                 <div className="h-1.5 w-full bg-indigo-100 dark:bg-indigo-900/30 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-indigo-500 transition-all duration-1000" 
-                    style={{ width: `${(1 - Math.abs(0.5 - moonInfo.phase) * 2) * 100}%` }} 
-                  />
+                  <div className="h-full bg-indigo-500 transition-all duration-1000" style={{ width: `${(1 - Math.abs(0.5 - moonInfo.phase) * 2) * 100}%` }} />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Events for Selected Day */}
           <Card className="shadow-sm border-muted/50">
             <CardHeader className="pb-3 border-b">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -396,23 +403,11 @@ export default function CalendarPage() {
                       {selectedDayEvents.map((event: any) => {
                         const eventDate = event.startDateTime?.toDate ? event.startDateTime.toDate() : new Date(event.startDateTime);
                         return (
-                          <div 
-                            key={event.id} 
-                            className={cn(
-                              "p-4 rounded-xl border bg-card hover:border-primary/50 transition-all group relative overflow-hidden",
-                              event.isBirthday && "border-pink-500/30 bg-pink-50/10 dark:bg-pink-900/10"
-                            )}
-                          >
-                            <div className={cn(
-                              "absolute left-0 top-0 bottom-0 w-1 bg-primary/20 group-hover:bg-primary transition-colors",
-                              event.isBirthday && "bg-pink-500"
-                            )} />
+                          <div key={event.id} className={cn("p-4 rounded-xl border bg-card hover:border-primary/50 transition-all group relative overflow-hidden", event.isBirthday && "border-pink-500/30 bg-pink-50/10 dark:bg-pink-900/10")}>
+                            <div className={cn("absolute left-0 top-0 bottom-0 w-1 bg-primary/20 group-hover:bg-primary transition-colors", event.isBirthday && "bg-pink-500")} />
                             <div className="flex justify-between items-start">
                               <div className="flex-1">
-                                <h4 className={cn(
-                                  "font-bold text-md leading-tight group-hover:text-primary transition-colors flex items-center gap-2",
-                                  event.isBirthday && "text-pink-600 dark:text-pink-400"
-                                )}>
+                                <h4 className={cn("font-bold text-md leading-tight group-hover:text-primary transition-colors flex items-center gap-2", event.isBirthday && "text-pink-600 dark:text-pink-400")}>
                                   {event.isBirthday && <Cake className="h-4 w-4" />}
                                   {event.title}
                                 </h4>
@@ -432,20 +427,13 @@ export default function CalendarPage() {
                                 </div>
                               </div>
                               {user && !event.id.startsWith("d") && !event.isBirthday && (
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  onClick={() => deleteEvent(event.id)}
-                                  className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                                >
+                                <Button variant="ghost" size="icon" onClick={() => deleteEvent(event.id)} className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
                               )}
                             </div>
                             {event.description && (
-                              <p className="mt-3 text-xs text-muted-foreground border-t pt-2 border-dashed italic">
-                                "{event.description}"
-                              </p>
+                              <p className="mt-3 text-xs text-muted-foreground border-t pt-2 border-dashed italic">"{event.description}"</p>
                             )}
                           </div>
                         )
@@ -463,51 +451,180 @@ export default function CalendarPage() {
               )}
             </CardContent>
           </Card>
-
-          {/* Traditional Context Card */}
-          <Card className="border-muted/50 shadow-sm">
-            <CardHeader className="pb-2 bg-accent/5">
-              <CardTitle className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-accent">
-                <Info className="h-4 w-4" />
-                {t("calendar.traditionalContext")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 py-4 text-xs font-medium">
-              <div className="flex justify-between items-center border-b pb-2 border-dashed">
-                <span className="text-muted-foreground flex items-center gap-1.5">
-                  <Moon className="h-3 w-3" /> {t("calendar.tithi")}
-                </span>
-                <span className="font-bold text-primary">{tithi}</span>
-              </div>
-              <div className="flex justify-between items-center border-b pb-2 border-dashed">
-                <span className="text-muted-foreground flex items-center gap-1.5">
-                  <Star className="h-3 w-3" /> {t("calendar.nakshatra")}
-                </span>
-                <span className="font-bold text-primary">{nakshatra}</span>
-              </div>
-              <div className="flex justify-between items-center border-b pb-2 border-dashed">
-                <span className="text-muted-foreground flex items-center gap-1.5">
-                  <Compass className="h-3 w-3" /> {t("calendar.raasi")}
-                </span>
-                <span className="font-bold text-primary">{raasi}</span>
-              </div>
-              <div className="flex justify-between items-center border-b pb-2 border-dashed">
-                <span className="text-muted-foreground flex items-center gap-1.5">
-                  <Zap className="h-3 w-3" /> {t("calendar.rahukalam")}
-                </span>
-                <span className="font-bold text-destructive">{rahukalam}</span>
-              </div>
-              <div className="flex justify-between items-center pt-1">
-                <span className="text-muted-foreground flex items-center gap-1.5">
-                  <Sparkles className="h-3 w-3" /> {t("calendar.auspicious")}
-                </span>
-                <span className="font-bold text-green-600">
-                  {t("calendar.open")}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
         </div>
+      </div>
+
+      {/* Cultural Heritage Section */}
+      <div className="pt-8 border-t border-dashed">
+        <h2 className="text-2xl font-black tracking-tighter text-primary flex items-center gap-3 mb-6">
+          <Globe className="h-7 w-7" />
+          Cultural Heritage & Global Holidays
+        </h2>
+        
+        <Tabs defaultValue="telugu" className="w-full">
+          <TabsList className="grid grid-cols-2 w-full max-w-md mb-8 bg-secondary/50 p-1">
+            <TabsTrigger value="telugu" className="gap-2 font-bold uppercase tracking-widest text-[10px]">
+              <Languages className="h-4 w-4" />
+              Telugu Panchangam
+            </TabsTrigger>
+            <TabsTrigger value="holidays" className="gap-2 font-bold uppercase tracking-widest text-[10px]">
+              <Milestone className="h-4 w-4" />
+              Global Holidays
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="telugu" className="space-y-8 animate-in fade-in duration-500">
+            <div className="grid md:grid-cols-2 gap-8">
+              {/* Telugu Months */}
+              <Card className="border-muted/50 shadow-md">
+                <CardHeader className="bg-primary/5 border-b">
+                  <CardTitle className="text-lg font-bold flex items-center gap-2">
+                    <CalendarIcon className="h-5 w-5 text-primary" />
+                    Telugu Maasams (Months)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <ScrollArea className="h-[400px]">
+                    <div className="p-4 space-y-2">
+                      {TELUGE_MONTHS.map((month, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-3 rounded-xl border bg-card hover:bg-secondary/20 transition-all">
+                          <div className="flex items-center gap-4">
+                            <span className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-black text-primary">
+                              {idx + 1}
+                            </span>
+                            <div>
+                              <p className="font-bold text-sm">{month.en}</p>
+                              <p className="text-xs text-primary font-bold">{month.te}</p>
+                            </div>
+                          </div>
+                          <div className="text-right max-w-[150px]">
+                            <p className="text-[10px] text-muted-foreground italic leading-tight">{month.significance}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+
+              {/* Samvatsaras */}
+              <Card className="border-muted/50 shadow-md">
+                <CardHeader className="bg-accent/5 border-b">
+                  <CardTitle className="text-lg font-bold flex items-center gap-2">
+                    <Star className="h-5 w-5 text-accent" />
+                    Samvatsaras (60-Year Cycle)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground mb-4 leading-relaxed bg-accent/5 p-3 rounded-lg border border-dashed border-accent/20">
+                    The Telugu calendar follows a 60-year cycle. Each year has a unique name and specific qualities.
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {TELUGU_SAMVATSARAS.slice(0, 30).map((year, idx) => (
+                      <Badge key={idx} variant="outline" className="text-[10px] py-1 px-2 border-primary/20 bg-primary/5 flex items-center justify-center">
+                        {year}
+                      </Badge>
+                    ))}
+                    <div className="col-span-3 text-center py-2">
+                      <Button variant="ghost" size="sm" className="text-[10px] font-black uppercase tracking-widest text-primary">
+                        View All 60 Years
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="holidays" className="animate-in fade-in duration-500">
+            <div className="flex items-center gap-4 mb-8 bg-secondary/30 p-4 rounded-2xl border border-dashed border-primary/20">
+              <div className="flex-1">
+                <h3 className="font-bold flex items-center gap-2">
+                  <Globe className="h-5 w-5 text-blue-500" />
+                  Public Holiday Explorer
+                </h3>
+                <p className="text-xs text-muted-foreground">Select a year to see holidays in Australia & India</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="icon" onClick={() => { setHolidayYear(y => y - 1); fetchHolidays(holidayYear - 1); }}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-xl font-black px-4">{holidayYear}</span>
+                <Button variant="outline" size="icon" onClick={() => { setHolidayYear(y => y + 1); fetchHolidays(holidayYear + 1); }}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-8">
+              {/* Australian Holidays */}
+              <Card className="border-muted/50 shadow-md overflow-hidden">
+                <CardHeader className="bg-blue-600/5 border-b flex flex-row items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Flag className="h-5 w-5 text-blue-600" />
+                    <CardTitle className="text-lg font-bold">Australia</CardTitle>
+                  </div>
+                  <Badge className="bg-blue-600 text-white border-none">AU</Badge>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <ScrollArea className="h-[400px]">
+                    <div className="p-4 space-y-3">
+                      {isHolidaysLoading ? (
+                        <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-blue-600" /></div>
+                      ) : (
+                        holidays.AU.map((h, i) => (
+                          <div key={i} className="flex items-start justify-between p-3 rounded-xl border bg-card hover:border-blue-200 transition-all border-l-4 border-l-blue-600">
+                            <div>
+                              <p className="font-bold text-sm leading-tight">{h.localName}</p>
+                              <p className="text-[10px] text-muted-foreground mt-1">{h.name}</p>
+                            </div>
+                            <Badge variant="secondary" className="text-[10px] font-bold px-2 py-0 bg-blue-50 text-blue-700 border-blue-100">
+                              {format(parseISO(h.date), "MMM d")}
+                            </Badge>
+                          </div>
+                        ))
+                      )}
+                      {!isHolidaysLoading && holidays.AU.length === 0 && <p className="text-center p-8 text-muted-foreground italic text-xs">No records for AU in {holidayYear}</p>}
+                    </div>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+
+              {/* Indian Holidays */}
+              <Card className="border-muted/50 shadow-md overflow-hidden">
+                <CardHeader className="bg-orange-600/5 border-b flex flex-row items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Flag className="h-5 w-5 text-orange-600" />
+                    <CardTitle className="text-lg font-bold">India</CardTitle>
+                  </div>
+                  <Badge className="bg-orange-600 text-white border-none">IN</Badge>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <ScrollArea className="h-[400px]">
+                    <div className="p-4 space-y-3">
+                      {isHolidaysLoading ? (
+                        <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+                      ) : (
+                        holidays.IN.map((h, i) => (
+                          <div key={i} className="flex items-start justify-between p-3 rounded-xl border bg-card hover:border-orange-200 transition-all border-l-4 border-l-orange-600">
+                            <div>
+                              <p className="font-bold text-sm leading-tight">{h.localName}</p>
+                              <p className="text-[10px] text-muted-foreground mt-1">{h.name}</p>
+                            </div>
+                            <Badge variant="secondary" className="text-[10px] font-bold px-2 py-0 bg-orange-50 text-orange-700 border-orange-100">
+                              {format(parseISO(h.date), "MMM d")}
+                            </Badge>
+                          </div>
+                        ))
+                      )}
+                      {!isHolidaysLoading && holidays.IN.length === 0 && <p className="text-center p-8 text-muted-foreground italic text-xs">No records for IN in {holidayYear}</p>}
+                    </div>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

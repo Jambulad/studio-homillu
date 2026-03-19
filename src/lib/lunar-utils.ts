@@ -49,41 +49,67 @@ export function getMoonPhase(date: Date = new Date()): MoonPhase {
   return { name, phase: normalizedPhase, emoji };
 }
 
-export function getTithi(date: Date = new Date()): string {
+export function getTithi(date: Date = new Date(), lang: "en" | "te" = "en"): string {
   const phase = getMoonPhase(date).phase;
   const tithiNum = Math.floor(phase * 30) + 1;
   
-  if (tithiNum === 1) return "Prathama";
-  if (tithiNum === 2) return "Dwitiya";
-  if (tithiNum === 3) return "Tritiya";
-  if (tithiNum === 4) return "Chaturthi";
-  if (tithiNum === 5) return "Panchami";
-  if (tithiNum === 15) return "Purnima (Full Moon)";
-  if (tithiNum === 30) return "Amavasya (New Moon)";
-  
-  return `Tithi ${tithiNum}`;
+  const tithis: Record<number, { en: string; te: string }> = {
+    1: { en: "Prathama", te: "పాడ్యమి" },
+    2: { en: "Dwitiya", te: "విదియ" },
+    3: { en: "Tritiya", te: "తదియ" },
+    4: { en: "Chaturthi", te: "చవితి" },
+    5: { en: "Panchami", te: "పంచమి" },
+    6: { en: "Shashti", te: "షష్ఠి" },
+    7: { en: "Saptami", te: "సప్తమి" },
+    8: { en: "Ashtami", te: "అష్టమి" },
+    9: { en: "Navami", te: "నవమి" },
+    10: { en: "Dashami", te: "దశమి" },
+    11: { en: "Ekadashi", te: "ఏకాదశి" },
+    12: { en: "Dwadashi", te: "ద్వాదశి" },
+    13: { en: "Trayodashi", te: "త్రయోదశి" },
+    14: { en: "Chaturdashi", te: "చతుర్దశి" },
+    15: { en: "Purnima", te: "పౌర్ణమి" },
+    30: { en: "Amavasya", te: "అమావాస్య" }
+  };
+
+  const result = tithis[tithiNum] || { en: `Tithi ${tithiNum}`, te: `తిథి ${tithiNum}` };
+  return lang === "te" ? result.te : result.en;
 }
 
-export function getNakshatra(date: Date = new Date()): string {
-  const Nakshatras = [
+export function getNakshatra(date: Date = new Date(), lang: "en" | "te" = "en"): string {
+  const NakshatrasEn = [
     "Ashwini", "Bharani", "Krittika", "Rohini", "Mrigashira", "Ardra", "Punarvasu", "Pushya", "Ashlesha",
     "Magha", "Purva Phalguni", "Uttara Phalguni", "Hasta", "Chitra", "Swati", "Vishakha", "Anuradha", "Jyeshtha",
     "Mula", "Purva Ashadha", "Uttara Ashadha", "Shravana", "Dhanishta", "Shatabhisha", "Purva Bhadrapada", "Uttara Bhadrapada", "Revati"
   ];
+  
+  const NakshatrasTe = [
+    "అశ్విని", "భరణి", "కృత్తిక", "రోహిణి", "మృగశిర", "ఆర్ద్ర", "పునర్వసు", "పుష్యమి", "ఆశ్లేష",
+    "మఘ", "పుబ్బ", "ఉత్తర", "హస్త", "చిత్త", "స్వాతి", "విశాఖ", "అనూరాధ", "జ్యేష్ఠ",
+    "మూల", "పూర్వాషాఢ", "ఉత్తరాషాఢ", "శ్రవణం", "ధనిష్ఠ", "శతభిషం", "పూర్వాభాద్ర", "ఉత్తరాభాద్ర", "రేవతి"
+  ];
+
   const phase = getMoonPhase(date).phase;
   const index = Math.floor(phase * 27);
-  return Nakshatras[index % 27];
+  return lang === "te" ? NakshatrasTe[index % 27] : NakshatrasEn[index % 27];
 }
 
-export function getRaasi(date: Date = new Date()): string {
-  const Raasis = [
+export function getRaasi(date: Date = new Date(), lang: "en" | "te" = "en"): string {
+  const RaasisEn = [
     "Mesha (Aries)", "Vrishabha (Taurus)", "Mithuna (Gemini)", "Karka (Cancer)",
     "Simha (Leo)", "Kanya (Virgo)", "Tula (Libra)", "Vrischika (Scorpio)",
     "Dhanu (Sagittarius)", "Makara (Capricorn)", "Kumbha (Aquarius)", "Meena (Pisces)"
   ];
+  
+  const RaasisTe = [
+    "మేషం", "వృషభం", "మిథునం", "కర్కాటకం",
+    "సింహం", "కన్య", "తుల", "వృశ్చికం",
+    "ధనుస్సు", "మకరం", "కుంభం", "మీనం"
+  ];
+
   const phase = getMoonPhase(date).phase;
   const index = Math.floor(phase * 12);
-  return Raasis[index % 12];
+  return lang === "te" ? RaasisTe[index % 12] : RaasisEn[index % 12];
 }
 
 export function getRahukalam(date: Date = new Date()): string {
@@ -99,3 +125,27 @@ export function getRahukalam(date: Date = new Date()): string {
   };
   return periods[day];
 }
+
+export const TELUGE_MONTHS = [
+  { en: "Chaitram", te: "చైత్రం", significance: "Ugadi (New Year), Spring begins" },
+  { en: "Vaishakham", te: "వైశాఖం", significance: "Summer heat, Akshaya Tritiya" },
+  { en: "Jyeshtham", te: "జ్యేష్ఠం", significance: "Peak summer, Waters rise" },
+  { en: "Ashadham", te: "ఆషాఢం", significance: "Monsoon begins, Bonalu" },
+  { en: "Shravanam", te: "శ్రావణం", significance: "Holy month, Varalakshmi Vratam" },
+  { en: "Bhadrapadam", te: "భాద్రపదం", significance: "Ganesh Chaturthi" },
+  { en: "Ashwayujam", te: "ఆశ్వయుజం", significance: "Dussehra, Bathukamma" },
+  { en: "Karthikam", te: "కార్తీకం", significance: "Diwali, Deepotsavam" },
+  { en: "Margashiram", te: "మార్గశిరం", significance: "Winter peaks, Gita Jayanti" },
+  { en: "Pushyam", te: "పుష్యం", significance: "Sankranti Harvest" },
+  { en: "Magham", te: "మాఘం", significance: "Maha Shivaratri" },
+  { en: "Phalgunam", te: "ఫాల్గుణం", significance: "Holi, End of year" }
+];
+
+export const TELUGU_SAMVATSARAS = [
+  "Prabhava", "Vibhava", "Shukla", "Pramodoota", "Prajotpatti", "Angirasa", "Shrimukha", "Bhava", "Yuva", "Dhata",
+  "Eeshwara", "Bahudhanya", "Pramathi", "Vikrama", "Vrusha", "Chitrabhanu", "Swabhanu", "Tarana", "Parthiva", "Vyaya",
+  "Sarvajit", "Sarvadhari", "Virodhi", "Vikruthi", "Khara", "Nandana", "Vijaya", "Jaya", "Manmadha", "Durmukhi",
+  "Hevilambi", "Vilambi", "Vikari", "Sharvari", "Plava", "Shubhakrutu", "Shobhakrutu", "Krodhi", "Viswavasu", "Paridhavi",
+  "Pramadecha", "Ananda", "Rakshasa", "Nala", "Pingala", "Kalayukthi", "Siddharthi", "Raudri", "Durmathi", "Dundubhi",
+  "Rudhirodgari", "Raktakshi", "Krodhana", "Akshaya"
+];
