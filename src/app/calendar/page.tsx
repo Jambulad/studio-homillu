@@ -147,7 +147,7 @@ export default function CalendarPage() {
   }, [cloudPersons]);
 
   const displayEvents = useMemo(() => {
-    const base = user ? (cloudEvents || []) : DUMMY_TASKS;
+    const base = user ? (cloudEvents || []) : DUMMY_EVENTS;
     const yearBirthdays = birthdays.map(b => {
       const bdayThisYear = new Date(currentViewDate.getFullYear(), b.month, b.day);
       return { ...b, startDateTime: bdayThisYear };
