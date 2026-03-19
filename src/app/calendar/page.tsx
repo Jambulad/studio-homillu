@@ -46,6 +46,30 @@ const DUMMY_EVENTS = [
   { id: "d2", title: "Doctor Appointment", location: "City Hospital", description: "Routine checkup", startDateTime: addHours(startOfToday(), 4) },
 ];
 
+// Curated list of major Hindu and regional festivals for India
+const MAJOR_INDIAN_FESTIVALS: Record<number, any[]> = {
+  2024: [
+    { date: "2024-01-15", localName: "Sankranti / Pongal", name: "Harvest Festival" },
+    { date: "2024-03-08", localName: "Maha Shivaratri", name: "Great Night of Shiva" },
+    { date: "2024-03-25", localName: "Holi", name: "Festival of Colors" },
+    { date: "2024-04-09", localName: "Ugadi", name: "Telugu New Year" },
+    { date: "2024-04-17", localName: "Sri Rama Navami", name: "Birth of Lord Rama" },
+    { date: "2024-09-07", localName: "Vinayaka Chavithi", name: "Ganesh Chaturthi" },
+    { date: "2024-10-12", localName: "Dussehra", name: "Vijayadashami" },
+    { date: "2024-10-31", localName: "Deepavali", name: "Festival of Lights" },
+  ],
+  2025: [
+    { date: "2025-01-14", localName: "Sankranti / Pongal", name: "Harvest Festival" },
+    { date: "2025-02-26", localName: "Maha Shivaratri", name: "Great Night of Shiva" },
+    { date: "2025-03-14", localName: "Holi", name: "Festival of Colors" },
+    { date: "2025-03-30", localName: "Ugadi", name: "Telugu New Year" },
+    { date: "2025-04-06", localName: "Sri Rama Navami", name: "Birth of Lord Rama" },
+    { date: "2025-08-27", localName: "Vinayaka Chavithi", name: "Ganesh Chaturthi" },
+    { date: "2025-10-02", localName: "Dussehra", name: "Vijayadashami" },
+    { date: "2025-10-20", localName: "Deepavali", name: "Festival of Lights" },
+  ]
+};
+
 export default function CalendarPage() {
   const { t, i18n } = useTranslation();
   const firestore = useFirestore();
@@ -75,10 +99,7 @@ export default function CalendarPage() {
       const getHolidays = async (code: string) => {
         try {
           const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/${code}`);
-          if (!res.ok) {
-            console.error(`Holiday API responded with ${res.status} for ${code}`);
-            return [];
-          }
+          if (!res.ok) return [];
           const text = await res.text();
           return text ? JSON.parse(text) : [];
         } catch (e) {
@@ -92,8 +113,10 @@ export default function CalendarPage() {
         getHolidays("IN")
       ]);
 
-      // If IN (India) data is empty from API, provide major national holidays as fallback
-      let finalIN = Array.isArray(dataIN) ? dataIN : [];
+      // India Data Processing
+      let finalIN = Array.isArray(dataIN) ? [...dataIN] : [];
+      
+      // Fallback for major national holidays if API is empty
       if (finalIN.length === 0) {
         finalIN = [
           { date: `${year}-01-26`, localName: "Republic Day", name: "Republic Day" },
@@ -102,17 +125,31 @@ export default function CalendarPage() {
         ];
       }
 
+      // Merge regional/cultural festivals for India which are often omitted by the public API
+      if (MAJOR_INDIAN_FESTIVALS[year]) {
+        MAJOR_INDIAN_FESTIVALS[year].forEach(fest => {
+          // Add if the date is missing or refine generic names
+          const existingIdx = finalIN.findIndex(h => h.date === fest.date);
+          if (existingIdx === -1) {
+            finalIN.push(fest);
+          } else {
+            // Prefer the richer cultural name if the API returned a generic one
+            if (finalIN[existingIdx].localName.length < fest.localName.length) {
+              finalIN[existingIdx].localName = fest.localName;
+            }
+          }
+        });
+      }
+
+      // Chronological sort
+      finalIN.sort((a, b) => a.date.localeCompare(b.date));
+
       setHolidays({ 
         AU: Array.isArray(dataAU) ? dataAU : [], 
         IN: finalIN 
       });
     } catch (error) {
       console.error("Failed to fetch holidays:", error);
-      toast({ 
-        variant: "destructive", 
-        title: "Holiday Fetch Note", 
-        description: "Unable to retrieve real-time holiday data. Showing baseline national holidays." 
-      });
     } finally {
       setIsHolidaysLoading(false);
     }
@@ -578,7 +615,7 @@ export default function CalendarPage() {
                   <Globe className="h-5 w-5 text-blue-500" />
                   Public Holiday Explorer
                 </h3>
-                <p className="text-xs text-muted-foreground">Select a year to see holidays in Australia & India</p>
+                <p className="text-xs text-muted-foreground">Select a year to see holidays in Australia & India (Including Hindu Festivals)</p>
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="icon" onClick={() => { 
