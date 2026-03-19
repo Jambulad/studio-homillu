@@ -167,6 +167,11 @@
           "type": "string",
           "description": "The unit of measurement for the quantity (e.g., 'pcs', 'kg', 'liter', optional)."
         },
+        "dueDate": {
+          "type": "string",
+          "description": "The date by which the item should be purchased (optional).",
+          "format": "date"
+        },
         "isChecked": {
           "type": "boolean",
           "description": "Indicates whether the item has been purchased or checked off the list."
