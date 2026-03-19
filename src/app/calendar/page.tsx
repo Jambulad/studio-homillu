@@ -448,6 +448,36 @@ export default function CalendarPage() {
             </CardContent>
           </Card>
 
+          {/* Traditional Context Card */}
+          <Card className="shadow-sm border-muted/50 bg-accent/5">
+            <CardHeader className="pb-3 border-b border-accent/10">
+              <CardTitle className="text-sm font-bold uppercase tracking-wider text-accent flex items-center gap-2">
+                <Sparkles className="h-4 w-4" />
+                {t("calendar.traditionalContext")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter">{t("calendar.tithi")}</p>
+                  <p className="text-sm font-bold text-primary">{tithi}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter">{t("calendar.nakshatra")}</p>
+                  <p className="text-sm font-bold text-primary">{nakshatra}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter">{t("calendar.raasi")}</p>
+                  <p className="text-sm font-bold text-primary">{raasi}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter">{t("calendar.rahukalam")}</p>
+                  <p className="text-sm font-bold text-destructive">{rahukalam}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="shadow-sm border-muted/50">
             <CardHeader className="pb-3 border-b">
               <CardTitle className="text-lg flex items-center gap-2">
