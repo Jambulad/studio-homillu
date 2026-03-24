@@ -1,23 +1,25 @@
 
 {
-  "name": "HomIllu Family Hub",
+  "name": "HomIllu - Family Hub",
   "short_name": "HomIllu",
-  "description": "Collaborative family management and heritage exploration.",
+  "description": "Collaborative family management and heritage exploration app.",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#f97316",
   "icons": [
     {
-      "src": "https://picsum.photos/seed/homillu-icon/192/192",
+      "src": "https://picsum.photos/seed/icon-192/192/192",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "https://picsum.photos/seed/homillu-icon/512/512",
+      "src": "https://picsum.photos/seed/icon-512/512/512",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

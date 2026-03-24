@@ -11,12 +11,14 @@
     "static-build": "next build && npx cap sync",
     "cap-sync": "npx cap sync",
     "android-open": "npx cap open android",
+    "ios-open": "npx cap open ios",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",
+    "@capacitor/ios": "^7.0.0",
     "@capacitor/cli": "^7.0.0",
     "@capacitor/core": "^7.0.0",
     "@genkit-ai/google-genai": "^1.28.0",
