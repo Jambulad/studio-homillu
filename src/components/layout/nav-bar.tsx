@@ -1,3 +1,4 @@
+
 "use client"
 
 import Link from "next/link";
@@ -20,7 +21,8 @@ import {
   Mail,
   Lock,
   Loader2,
-  Heart
+  Heart,
+  ShieldAlert
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -68,6 +70,8 @@ export function NavBar() {
     i18n.changeLanguage(lang);
   };
 
+  const isAdmin = user?.email === 'dhileepudu@gmail.com';
+
   const navItems = [
     { href: "/", label: t("common.dashboard"), icon: LayoutDashboard },
     { href: "/tasks", label: t("nav.tasks"), icon: CheckSquare },
@@ -77,6 +81,10 @@ export function NavBar() {
     { href: "/moments", label: t("nav.moments"), icon: Clock },
     { href: "/contacts", label: "Developer", icon: Heart },
   ];
+
+  if (isAdmin) {
+    navItems.push({ href: "/admin", label: "Admin", icon: ShieldAlert });
+  }
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,6 +191,17 @@ export function NavBar() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                {isAdmin && (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin" className="flex items-center">
+                        <ShieldAlert className="mr-2 h-4 w-4" />
+                        <span>Admin Dashboard</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem onClick={signOut} className="text-destructive focus:text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>{i18n.language === "te" ? "లాగ్ అవుట్" : "Log out"}</span>

@@ -4,9 +4,9 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * HOMILLU SECURITY RULES - STABILITY MODE
+     * HOMILLU SECURITY RULES - ADMIN ENHANCED
      * 
-     * Enforces strict user-ownership and shared-household model.
+     * Enforces strict user-ownership with a bypass for the Platform Admin (Dhileepudu).
      */
 
     // --- GLOBAL HELPER FUNCTIONS ---
@@ -19,38 +19,39 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isExistingOwner(userId) {
-      return resource != null && isOwner(userId);
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email == 'dhileepudu@gmail.com';
     }
 
     function isMemberInMap(membersMap) {
-      return isSignedIn() && (membersMap[request.auth.uid] != null || membersMap.admin == request.auth.uid);
+      return isSignedIn() && (membersMap[request.auth.uid] != null || membersMap.admin == request.auth.uid || isAdmin());
     }
 
     function checkHouseholdMembership(householdId) {
       return (isSignedIn() && request.auth.uid == householdId) || 
+             isAdmin() ||
              (exists(/databases/$(database)/documents/households/$(householdId)) && 
               isMemberInMap(get(/databases/$(database)/documents/households/$(householdId)).data.members));
     }
 
     // --- USER PROFILES ---
     match /users/{userId} {
-      allow get, list: if isOwner(userId);
+      allow get, list: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && request.resource.data.id == userId;
       allow update: if isOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
+      allow delete: if isOwner(userId) || isAdmin();
     }
 
     // --- HOUSEHOLDS ---
     match /households/{householdId} {
-      allow get: if (isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.members);
-      allow list: if false; 
+      allow get: if (isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.members) || isAdmin();
+      allow list: if isAdmin(); 
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
       allow update: if resource != null && 
-                      ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.members)) && 
-                      request.resource.data.ownerId == resource.data.ownerId;
+                      ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.members) || isAdmin()) && 
+                      (request.resource.data.ownerId == resource.data.ownerId || isAdmin());
       allow delete: if (resource != null && resource.data.ownerId == request.auth.uid) || 
-                      (isSignedIn() && request.auth.uid == householdId);
+                      (isSignedIn() && request.auth.uid == householdId) || isAdmin();
     }
 
     // --- HOUSEHOLD SUBCOLLECTIONS ---
@@ -60,22 +61,33 @@ service cloud.firestore {
       }
       
       allow get: if isHouseholdSubcollection() && 
-                    ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.householdMembers));
+                    ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.householdMembers) || isAdmin());
       
       allow list: if isHouseholdSubcollection() && checkHouseholdMembership(householdId);
       
       allow create: if isHouseholdSubcollection() && 
-                      checkHouseholdMembership(householdId) && 
+                      (checkHouseholdMembership(householdId) || isAdmin()) && 
                       request.resource.data.householdId == householdId;
       
       allow update: if isHouseholdSubcollection() && 
                       resource != null && 
-                      ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.householdMembers)) && 
-                      request.resource.data.householdId == resource.data.householdId;
+                      ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.householdMembers) || isAdmin()) && 
+                      (request.resource.data.householdId == resource.data.householdId || isAdmin());
       
       allow delete: if isHouseholdSubcollection() && 
                       resource != null && 
-                      ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.householdMembers));
+                      ((isSignedIn() && request.auth.uid == householdId) || isMemberInMap(resource.data.householdMembers) || isAdmin());
+    }
+
+    // --- COLLECTION GROUPS (For Admin Dashboard) ---
+    match /{path=**}/tasks/{taskId} {
+      allow read, delete: if isAdmin();
+    }
+    match /{path=**}/shoppingListItems/{itemId} {
+      allow read, delete: if isAdmin();
+    }
+    match /{path=**}/households/{householdId} {
+      allow read, delete: if isAdmin();
     }
 
     // --- DEFAULT DENY ---
