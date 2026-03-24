@@ -1,3 +1,4 @@
+
 {
   "name": "HomIllu Family Hub",
   "short_name": "HomIllu",
@@ -14,10 +15,9 @@
       "purpose": "any maskable"
     },
     {
-      "src": "https://picsum.photos/seed/homillu-icon-large/512/512",
+      "src": "https://picsum.photos/seed/homillu-icon/512/512",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
   ]
 }
