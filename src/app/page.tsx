@@ -258,36 +258,50 @@ export default function DashboardPage() {
       </div>
 
       <Dialog open={isUrgentDialogOpen} onOpenChange={setIsUrgentDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md rounded-[2rem]">
           <DialogHeader>
-            <div className="h-12 w-12 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center mb-4">
-              <AlertCircle className="h-6 w-6 text-orange-600" />
+            <div className="h-14 w-14 rounded-2xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center mb-4 mx-auto sm:mx-0">
+              <AlertCircle className="h-8 w-8 text-orange-600" />
             </div>
-            <DialogTitle className="text-2xl font-bold">Upcoming Family Tasks</DialogTitle>
-            <DialogDescription>
-              These responsibilities need your attention soon.
+            <DialogTitle className="text-2xl font-black tracking-tight text-center sm:text-left">Immediate Attention</DialogTitle>
+            <DialogDescription className="text-center sm:text-left font-medium">
+              These household responsibilities are approaching their deadlines.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4 space-y-3">
+          <div className="py-6 space-y-4 max-h-[350px] overflow-y-auto pr-2 scrollbar-hide">
             {urgentTasks.map((task: any) => (
-              <div key={task.id} className="flex items-center justify-between p-3 rounded-xl border bg-orange-50/50 dark:bg-orange-950/10 border-orange-100 dark:border-orange-900/30">
-                <div className="flex items-center gap-3">
-                  <CheckSquare className="h-4 w-4 text-orange-600" />
+              <div key={task.id} className="group relative flex items-center justify-between p-4 rounded-2xl border bg-orange-500/5 hover:bg-orange-500/10 border-orange-500/10 transition-all">
+                <div className="flex items-center gap-4">
+                  <div className="h-10 w-10 rounded-xl bg-background flex items-center justify-center shadow-sm">
+                    <CheckSquare className="h-5 w-5 text-orange-600" />
+                  </div>
                   <div>
-                    <p className="text-sm font-bold leading-none">{task.title}</p>
-                    <p className="text-[10px] text-orange-600 font-bold uppercase tracking-wider mt-1">
-                      Due: {task.dueDate}
-                    </p>
+                    <p className="text-sm font-bold leading-tight group-hover:text-primary transition-colors">{task.title}</p>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <Clock className="h-3 w-3 text-orange-600" />
+                      <p className="text-[10px] text-orange-600/80 font-black uppercase tracking-widest">
+                        Due: {task.dueDate}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
             ))}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsUrgentDialogOpen(false)}>Later</Button>
-            <Link href="/tasks">
-              <Button className="gap-2" onClick={() => setIsUrgentDialogOpen(false)}>
-                Go to Task List <ArrowRight className="h-4 w-4" />
+          <DialogFooter className="grid grid-cols-2 gap-3 sm:flex sm:flex-row sm:justify-end sm:gap-0 mt-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsUrgentDialogOpen(false)}
+              className="w-full sm:w-auto font-bold uppercase text-[10px] tracking-[0.2em] rounded-xl"
+            >
+              Later
+            </Button>
+            <Link href="/tasks" className="w-full sm:w-auto">
+              <Button 
+                className="w-full sm:w-auto gap-2 font-bold uppercase text-[10px] tracking-[0.2em] rounded-xl shadow-lg"
+                onClick={() => setIsUrgentDialogOpen(false)}
+              >
+                Task List <ArrowRight className="h-3 w-3" />
               </Button>
             </Link>
           </DialogFooter>
